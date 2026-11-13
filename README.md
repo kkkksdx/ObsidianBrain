@@ -2,8 +2,6 @@
 
 本地优先的 Rust 知识引擎与个人工作台，把 Markdown/PDF 阅读、时光机小记、个人任务和按书维护的 LLM Wiki 放在同一个空间，并通过 Tool API / MCP 向外提供能力。
 
-**[访问产品官网与完整使用指南](https://tiercelchow.github.io/ObsidianBrain/)**
-
 ## 功能
 
 ### 阅境轩（Markdown 阅读器）
