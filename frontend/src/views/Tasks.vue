@@ -1,0 +1,1509 @@
+<template>
+  <div class="tasks-page" :class="{ 'view-tasks': viewMode === 'tasks', 'mobile-focused': viewMode === 'tasks' && !!store.selectedTaskId }">
+    <header class="page-header">
+      <div>
+        <h1 class="page-title">任务中枢</h1>
+      </div>
+    </header>
+
+    <section class="task-toolbar glass-surface" data-glass-rim>
+      <div class="view-switch" data-glass="inset" aria-label="视图切换">
+        <span class="switch-indicator" data-glass-indicator :class="viewMode"></span>
+        <button type="button" :class="{ active: viewMode === 'tasks' }" @click="changeView('tasks')">任务</button>
+        <button type="button" :class="{ active: viewMode === 'calendar' }" @click="changeView('calendar')">日历</button>
+      </div>
+      <div class="task-search glass-surface" data-glass="search" data-glass-rim role="search">
+        <el-icon class="task-search-icon"><Search /></el-icon>
+        <input v-model="searchQuery" type="search" aria-label="搜索任务" placeholder="搜索标题或描述" />
+        <button data-icon-only v-if="searchQuery" type="button" class="task-search-clear" aria-label="清除搜索" @click="searchQuery = ''"><el-icon class="ui-action-icon" :size="16" aria-hidden="true"><Close /></el-icon></button>
+      </div>
+      <div class="filters">
+        <el-select
+          v-model="kindFilter"
+          aria-label="任务类型"
+          popper-class="system-select-popper system-toolbar-popper"
+          placement="bottom-start"
+          :offset="0"
+          :fit-input-width="true"
+        >
+          <el-option value="all" label="全部类型" />
+          <el-option value="short" label="短期待办" />
+          <el-option value="long" label="长期任务" />
+        </el-select>
+        <el-select
+          v-model="statusFilter"
+          aria-label="任务状态"
+          popper-class="system-select-popper system-toolbar-popper"
+          placement="bottom-start"
+          :offset="0"
+          :fit-input-width="true"
+        >
+          <el-option value="active" label="未关闭" />
+          <el-option value="all" label="全部状态" />
+          <el-option v-for="option in statusOptions" :key="option.value" :value="option.value" :label="option.label" />
+        </el-select>
+      </div>
+    </section>
+
+    <MotionModal v-model="queryPanelOpen" :aria-label="queryPanelMode === 'search' ? '搜索任务' : '筛选任务'">
+      <section class="task-query-sheet glass-surface-heavy">
+        <header class="filter-sheet-header"><h3>{{ queryPanelMode === 'search' ? '搜索任务' : '筛选任务' }}</h3><button data-icon-only type="button" class="ui-icon-action" aria-label="关闭任务查询" @click="queryPanelOpen = false"><el-icon class="ui-action-icon" aria-hidden="true"><Close /></el-icon></button></header>
+        <div v-if="queryPanelMode === 'search'" class="task-search glass-surface" data-glass="search" data-glass-rim role="search">
+          <el-icon class="task-search-icon"><Search /></el-icon>
+          <input ref="mobileSearchInput" v-model="searchQuery" type="search" aria-label="搜索任务" placeholder="搜索任务" />
+          <button data-icon-only v-if="searchQuery" type="button" class="task-search-clear" aria-label="清除搜索" @click="searchQuery = ''"><el-icon class="ui-action-icon" :size="16" aria-hidden="true"><Close /></el-icon></button>
+        </div>
+        <div v-else class="query-filter-fields">
+          <label><span>类型</span><el-select v-model="kindFilter" aria-label="任务类型" popper-class="system-select-popper" placement="bottom-start" :offset="0" :fit-input-width="true"><el-option value="all" label="全部类型" /><el-option value="short" label="短期待办" /><el-option value="long" label="长期任务" /></el-select></label>
+          <label><span>状态</span><el-select v-model="statusFilter" aria-label="任务状态" popper-class="system-select-popper" placement="bottom-start" :offset="0" :fit-input-width="true"><el-option value="active" label="未关闭" /><el-option value="all" label="全部状态" /><el-option v-for="option in statusOptions" :key="option.value" :value="option.value" :label="option.label" /></el-select></label>
+        </div>
+        <div class="query-sheet-actions"><button type="button" class="glass-btn" @click="resetListFilters">重置</button><button type="button" class="glass-btn" @click="queryPanelOpen = false">完成</button></div>
+      </section>
+    </MotionModal>
+
+    <Transition name="error-banner">
+      <div v-if="store.error" class="error-banner" role="alert">
+        <span>{{ store.error }}</span>
+        <button type="button" @click="store.clearError">关闭</button>
+      </div>
+    </Transition>
+
+    <MotionSwap v-if="viewMode === 'tasks'" class="task-workspace-stage" :view-key="isPhone ? (store.selectedTaskId ? 'detail' : 'list') : 'desktop'" :horizontal="isPhone" :direction="store.selectedTaskId ? 1 : -1" contained>
+    <template v-if="isPhone">
+      <MobileTaskList v-if="!store.selectedTaskId" :tasks="visibleTasks" :counts="focusCounts" :focus="focusFilter" :today="today" :loading="store.loading" :filtered="hasListFilters" :scroll-top="mobileListScrollTop" :restore-ready="!route.query.task"
+        @focus="focusFilter = $event" @open="openTask" @reset="resetListFilters" @scroll="onMobileListScroll" />
+      <MobileTaskDetail v-else-if="detail && !store.detailLoading" v-model:section="detailSection" :node="detail.root" :tasks="detail.tasks" :entries="activity" :today="today"
+        :progress-percent="detail.progress_percent" :completed-leaves="detail.completed_leaf_count" :effective-leaves="detail.effective_leaf_count"
+        @back="closeMobileDetail" @edit="openEdit" @complete="openCompleteShort" @select="focusTask" @inspect="openActivityDetail" @add-child="openSubtask" @add-progress="openProgress" @scroll="onPanelScroll" />
+      <div v-else class="mobile-detail-pending">
+        <UiAction :icon="ArrowLeft" label="返回任务列表" @click="closeMobileDetail" />
+        <p v-if="store.detailLoading" role="status">正在加载任务…</p>
+        <template v-else><p>任务详情暂未加载</p><button type="button" @click="openTask(store.selectedTaskId)">重新加载</button></template>
+      </div>
+    </template>
+    <div v-else class="task-workspace" :class="{ 'detail-open': !!store.selectedTaskId, 'list-collapsed': !!detail && listCollapsed }">
+      <aside class="task-list-panel glass-surface" data-glass="structural">
+        <div class="list-controls" :aria-hidden="listCollapsed" :inert="listCollapsed ? true : undefined">
+        <div class="panel-heading">
+          <div>
+            <strong>我的任务</strong>
+            <span>{{ visibleTasks.length }} 项</span>
+          </div>
+          <div class="panel-heading-actions">
+            <button data-icon-only data-direction-button v-if="detail" type="button" aria-label="收起任务列表" title="收起任务列表" @click="listCollapsed = true"><el-icon class="ui-chevron" aria-hidden="true"><ArrowLeft /></el-icon></button>
+            <button data-icon-only type="button" aria-label="新建任务" @click="openCreate()"><el-icon class="ui-action-icon" aria-hidden="true"><Plus /></el-icon></button>
+          </div>
+        </div>
+        <div class="focus-filters" data-glass="inset" aria-label="快速筛选当前列表">
+          <button v-for="option in focusOptions" :key="option.value" type="button"
+            :class="{ active: focusFilter === option.value }" :aria-pressed="focusFilter === option.value"
+            @click="focusFilter = option.value">
+            {{ option.label }}<span>{{ focusCounts[option.value] }}</span>
+          </button>
+        </div>
+        </div>
+
+        <div class="task-list-scroll" :aria-hidden="listCollapsed" :inert="listCollapsed ? true : undefined" @scroll="onPanelScroll">
+        <div v-if="store.loading" class="task-skeletons" aria-label="加载中">
+          <span v-for="index in 5" :key="index"></span>
+        </div>
+        <div v-else-if="visibleTasks.length" class="task-list">
+          <section v-for="group in groupedTasks" :key="group.key" class="task-group">
+            <div class="task-group-title"><span>{{ group.label }}</span><small>{{ group.tasks.length }}</small></div>
+            <TransitionGroup name="task-card" tag="div" class="task-group-items">
+              <button
+                v-for="task in group.tasks"
+                :key="task.id"
+                type="button"
+                class="task-card"
+                :aria-current="store.selectedTaskId === task.id ? 'true' : undefined"
+                :class="[
+                  `importance-${task.importance}`,
+                  { selected: store.selectedTaskId === task.id, overdue: taskTiming(task, today).tone === 'danger' },
+                ]"
+                @click="openTask(task.id)"
+              >
+                <span class="card-accent"></span>
+                <span class="card-main">
+                  <span class="card-topline">
+                    <strong>{{ task.title }}</strong>
+                    <span class="kind-badge">{{ task.kind === 'short' ? '待办' : '长期' }}</span>
+                  </span>
+                  <span class="card-state">
+                    <span class="task-pill" :class="`status-${task.status}`">{{ taskStatusLabel(task.status) }}</span>
+                    <span class="priority-label">{{ taskImportanceLabel(task.importance) }}</span>
+                    <span v-if="task.kind === 'long'" class="card-percent">{{ task.progress_percent }}%</span>
+                  </span>
+                  <span class="card-footer">
+                    <span :class="taskTiming(task, today).tone" :title="formatTaskDateRange(task.start_date, task.end_date)">{{ taskTiming(task, today).label }}</span>
+                    <span v-if="task.kind === 'long' && task.effective_leaf_count > 1">{{ task.completed_leaf_count }}/{{ task.effective_leaf_count }} 完成</span>
+                  </span>
+                  <span v-if="task.kind === 'long'" class="mini-progress">
+                    <i :style="{ width: `${task.progress_percent}%` }"></i>
+                  </span>
+                </span>
+                <el-icon class="card-chevron ui-chevron" aria-hidden="true"><ArrowRight /></el-icon>
+              </button>
+            </TransitionGroup>
+          </section>
+        </div>
+        <div v-else class="empty-list">
+          <div class="empty-orb"><el-icon aria-hidden="true"><Check /></el-icon></div>
+          <strong>{{ hasListFilters ? '没有符合条件的任务' : '从一件小事开始' }}</strong>
+          <p>{{ hasListFilters ? '试试其他筛选，或清除条件查看未关闭任务。' : '新建短期待办，或拆解一个长期目标。' }}</p>
+          <button v-if="hasListFilters" type="button" @click="resetListFilters">重置筛选</button>
+          <button data-icon-only v-else type="button" class="ui-icon-action" aria-label="新建第一个任务" title="新建任务" @click="openCreate()"><el-icon class="ui-action-icon" aria-hidden="true"><Plus /></el-icon></button>
+        </div>
+        </div>
+
+        <div class="task-list-rail" aria-label="任务快速导航" :aria-hidden="!listCollapsed" :inert="!listCollapsed ? true : undefined">
+          <button data-icon-only data-direction-button type="button" class="rail-expand" aria-label="展开任务列表" title="展开任务列表" @click="listCollapsed = false"><el-icon class="ui-chevron" aria-hidden="true"><ArrowRight /></el-icon></button>
+          <div class="rail-items">
+            <button
+              v-for="task in visibleTasks"
+              :key="task.id"
+              type="button"
+              class="rail-task"
+              :class="[`importance-${task.importance}`, { selected: store.selectedTaskId === task.id }]"
+              :aria-label="task.title"
+              :title="task.title"
+              @click="openTask(task.id)"
+            >
+              <span>{{ task.title.trim().slice(0, 1) || '·' }}</span>
+              <i :class="`status-${task.status}`"></i>
+            </button>
+          </div>
+          <button data-icon-only type="button" class="rail-create" aria-label="新建任务" title="新建任务" @click="openCreate()"><el-icon class="ui-action-icon" aria-hidden="true"><Plus /></el-icon></button>
+        </div>
+      </aside>
+
+      <div class="task-detail-zone glass-surface" data-glass="card" :class="detail?.root.kind === 'long' ? 'mobile-section-' + detailSection : null" @scroll="onPanelScroll">
+        <div v-if="store.detailLoading" class="task-detail-placeholder">
+          <div class="detail-loading"><span></span><span></span><span></span></div>
+        </div>
+        <template v-else-if="detail">
+        <div v-if="store.selectedTaskId" class="mobile-detail-nav">
+          <UiAction :icon="ArrowLeft" label="返回任务列表" @click="closeMobileDetail" />
+          <span>{{ detail.root.kind === 'short' ? '短期待办' : '长期任务' }}</span>
+          <UiAction :icon="EditPen" label="编辑任务" @click="openEdit(detail.root)" />
+        </div>
+        <div class="mobile-detail-scroll" @scroll="onPanelScroll">
+        <div class="detail-summary">
+          <header ref="detailHeaderRef" class="detail-header">
+            <div class="detail-title-group">
+              <h2>{{ detail.root.title }}</h2>
+              <div class="detail-pills">
+                <span class="task-pill" :class="`kind-${detail.root.kind}`">{{ detail.root.kind === 'short' ? '待办' : '长期' }}</span>
+                <span class="task-pill" :class="`status-${detail.root.status}`">{{ taskStatusLabel(detail.root.status) }}</span>
+                <span class="task-pill" :class="`importance-${detail.root.importance}`">{{ taskImportanceLabel(detail.root.importance) }}</span>
+                <div class="detail-facts">
+                  <span>{{ detail.root.start_date }} <span aria-label="至">→</span> {{ detail.root.end_date }}</span>
+                  <strong :class="taskTiming(detail.root, today).tone">{{ taskTiming(detail.root, today).label }}</strong>
+                </div>
+              </div>
+            </div>
+            <div class="detail-actions">
+              <button data-icon-only type="button" class="edit-action" aria-label="编辑任务" @click="openEdit(detail.root)"><el-icon><EditPen /></el-icon></button>
+            </div>
+          </header>
+
+          <div class="detail-context">
+          <p v-if="detail.root.description" class="task-description">{{ detail.root.description }}</p>
+          </div>
+
+          <div v-if="detail.root.kind === 'long'" class="detail-switch" data-glass="inset" role="tablist" aria-label="切换拆解与进展">
+            <span class="detail-switch-indicator" data-glass-indicator :class="detailSection" aria-hidden="true"></span>
+            <button type="button" role="tab" :aria-selected="detailSection === 'breakdown'" :class="{ active: detailSection === 'breakdown' }" @click="detailSection = 'breakdown'">任务拆解<span>{{ subtaskCount }}</span></button>
+            <button type="button" role="tab" :aria-selected="detailSection === 'progress'" :class="{ active: detailSection === 'progress' }" @click="detailSection = 'progress'">进展记录<span>{{ activity.length }}</span></button>
+          </div>
+        </div>
+
+        <div class="detail-columns" :class="{ split: detail.root.kind === 'long' }">
+          <Transition name="collection-flow" @before-leave="freezeCollectionLeave" @before-enter="resetCollectionEnter">
+          <section v-if="detail.root.kind === 'long'" v-show="!isPhone || detailSection === 'breakdown'" class="detail-section task-breakdown">
+            <div class="column-heading">
+              <div><span>任务拆解</span><strong>{{ detail.completed_leaf_count }}/{{ detail.effective_leaf_count }}</strong></div>
+              <button data-icon-only type="button" aria-label="添加子任务" @click="openSubtask(detail.root)"><el-icon class="ui-action-icon" aria-hidden="true"><Plus /></el-icon></button>
+            </div>
+            <div class="column-scroll" @scroll="onPanelScroll">
+            <TaskTree
+              :tasks="detail.tasks"
+              :selected-id="drawerNodeId || detail.root.id"
+              @select="focusTask"
+              @edit="openEdit"
+              @reorder="quickMove"
+            />
+            </div>
+          </section>
+          </Transition>
+
+        <Transition name="collection-flow" @before-leave="freezeCollectionLeave" @before-enter="resetCollectionEnter">
+        <aside v-show="!isPhone || detail.root.kind !== 'long' || detailSection === 'progress'" ref="activitySectionRef" class="task-progress-panel">
+          <div class="progress-column-header">
+            <div><span>进展</span><strong>{{ activity.length }} 条记录</strong></div>
+            <button data-icon-only v-if="detail.root.kind === 'long' && !isTaskClosed(detail.root)" type="button" aria-label="记录进展" @click="openProgress(detail.root)"><el-icon class="ui-action-icon" aria-hidden="true"><Plus /></el-icon></button>
+          </div>
+          <div class="progress-body" @scroll="onPanelScroll">
+            <div v-if="activity.length" class="activity-list">
+              <article
+                v-for="item in activity"
+                :key="item.id"
+                class="activity-item"
+                tabindex="0"
+                :aria-label="`查看记录详情：${item.taskTitle} ${item.title}`"
+                @click="activityDetail = item"
+                @keydown="onActivityKeydown($event, item)"
+              >
+                <span class="activity-dot" :class="item.type"></span>
+                <div class="activity-copy">
+                  <div class="activity-head">
+                    <strong>
+                      <span class="task-pill" :class="`type-${item.type}`">{{ item.title }}</span>
+                      <button type="button" class="activity-task" :title="item.taskTitle" @click.stop="focusTask(item.taskId)">{{ item.taskTitle }}</button>
+                    </strong>
+                    <time>{{ formatTimestamp(item.time) }}</time>
+                  </div>
+                  <p v-if="item.detail" class="activity-detail">{{ item.detail }}</p>
+                  <p v-if="item.note" class="activity-note">{{ item.note }}</p>
+                </div>
+              </article>
+            </div>
+            <p v-else class="activity-empty-copy">{{ detail.root.kind === 'long' ? '还没有记录，留下第一步进展。' : '状态变化与关闭说明会保留在这里。' }}</p>
+          </div>
+        </aside>
+        </Transition>
+        </div>
+        </div>
+        <footer v-if="!isTaskClosed(detail.root)" class="mobile-context-actions" aria-label="任务操作">
+          <template v-if="detail.root.kind === 'long'">
+            <button data-icon-only type="button" aria-label="添加子任务" title="添加子任务" @click="openSubtask(detail.root)"><el-icon><Plus /></el-icon></button>
+            <UiAction :icon="EditPen" label="记录进展" @click="openProgress(detail.root)" />
+          </template>
+          <button v-else type="button" class="primary complete-shortcut" @click="openCompleteShort(detail.root)">完成待办</button>
+        </footer>
+        </template>
+        <div v-else class="empty-detail">
+          <template v-if="store.selectedTaskId">
+            <strong>任务详情暂未加载</strong>
+            <p>可以重试，或返回列表选择其他任务。</p>
+            <button type="button" class="activity-empty" @click="openTask(store.selectedTaskId)">重新加载</button>
+          </template>
+          <template v-else>
+            <h2>把注意力留给重要的事</h2>
+            <p>{{ suggestedTasks.length ? '根据当前列表的紧迫程度排序，选择一项开始推进。' : '从左侧选择任务，或新建一件想完成的事。' }}</p>
+            <div v-if="suggestedTasks.length" class="suggested-tasks">
+              <button v-for="task in suggestedTasks" :key="task.id" type="button" @click="openTask(task.id)">
+                <span class="suggestion-copy"><strong>{{ task.title }}</strong><small>{{ taskStatusLabel(task.status) }} · {{ taskImportanceLabel(task.importance) }}</small></span>
+                <span class="suggestion-timing" :class="taskTiming(task, today).tone">{{ taskTiming(task, today).label }} <el-icon :size="16" aria-hidden="true"><TopRight /></el-icon></span>
+              </button>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+    </MotionSwap>
+
+    <TaskCalendar
+      v-else
+      :compact="isPhone"
+      :anchor="calendarAnchor"
+      :selected-date="selectedDate"
+      :tasks="store.calendarTasks"
+      :loading="store.calendarLoading"
+      :expanded-task-ids="calendarExpandedTaskIds"
+      @shift="shiftCalendar"
+      @today="goToday"
+      @select-date="selectCalendarDate"
+      @open-task="openFromCalendar"
+      @create="openCreate"
+      @update-expanded="calendarExpandedTaskIds = $event"
+    />
+
+    <MotionModal v-if="!isPhone" v-model="childDetailOpen" aria-label="子任务详情">
+      <MotionSwap :view-key="drawerNode?.id || 'empty'" horizontal>
+      <section v-if="drawerNode" :key="drawerNode.id" class="child-task-dialog glass-surface-heavy">
+        <header class="child-dialog-header">
+          <div class="child-header-toolbar">
+            <div class="child-parent-path">
+              <button data-icon-only data-direction-button v-if="drawerParent?.role === 'subtask'" type="button" class="child-back" aria-label="返回上一级" @click="backFromChild"><el-icon class="ui-chevron" aria-hidden="true"><ArrowLeft /></el-icon></button>
+              <span :title="drawerParent?.title || detail?.root.title">{{ drawerParent?.title || detail?.root.title }}</span>
+            </div>
+            <div class="child-header-actions">
+              <button data-icon-only type="button" class="child-edit" aria-label="编辑任务" @click="openEdit(drawerNode)"><el-icon><EditPen /></el-icon></button>
+              <button data-icon-only type="button" class="child-close" aria-label="关闭子任务详情" @click="closeDrawer"><el-icon class="ui-action-icon" aria-hidden="true"><Close /></el-icon></button>
+            </div>
+          </div>
+          <h3 class="child-task-title">{{ drawerNode.title }}</h3>
+          <div class="detail-pills">
+            <span class="task-pill" :class="`status-${drawerNode.status}`">{{ taskStatusLabel(drawerNode.status) }}</span>
+            <span class="task-pill" :class="`importance-${drawerNode.importance}`">{{ taskImportanceLabel(drawerNode.importance) }}</span>
+          </div>
+        </header>
+        <div class="child-dialog-scroll">
+          <p v-if="drawerNode.description" class="child-description">{{ drawerNode.description }}</p>
+          <div class="child-facts">
+            <span>{{ drawerNode.start_date }} → {{ drawerNode.end_date }}</span>
+            <strong :class="taskTiming(drawerNode, today).tone">{{ taskTiming(drawerNode, today).label }}</strong>
+          </div>
+          <section class="child-section" aria-label="子任务">
+            <div class="column-heading">
+              <div><span>子任务</span><strong>{{ drawerChildren.length }}</strong></div>
+              <UiAction v-if="!isTaskClosed(drawerNode)" :icon="Plus" label="添加子任务" @click="openSubtask(drawerNode)" />
+            </div>
+            <div v-if="drawerChildren.length" class="child-list">
+              <button v-for="child in drawerChildren" :key="child.id" type="button" :aria-label="`${child.title}，${taskStatusLabel(child.status)}`" @click="focusTask(child.id)">
+                <TaskStatusMark :status="child.status" />
+                <strong>{{ child.title }}</strong>
+                <span class="task-pill" :class="`importance-${child.importance}`">{{ taskImportanceLabel(child.importance) }}</span>
+                <el-icon class="ui-chevron" aria-hidden="true"><ArrowRight /></el-icon>
+              </button>
+            </div>
+            <p v-else class="activity-empty-copy">还没有子任务</p>
+          </section>
+          <section class="child-section" aria-label="进展与记录">
+            <div class="column-heading">
+              <div><span>进展与记录</span><strong>{{ drawerActivity.length }}</strong></div>
+              <UiAction v-if="!isTaskClosed(drawerNode)" :icon="Plus" label="记录进展" @click="openProgress(drawerNode)" />
+            </div>
+            <div v-if="drawerActivity.length" class="activity-list">
+              <article v-for="item in drawerActivity" :key="item.id" class="activity-item" tabindex="0"
+                :aria-label="`查看记录详情：${item.title}`" @click="openActivityDetail(item)" @keydown="onActivityKeydown($event, item)">
+                <span class="activity-dot" :class="item.type"></span>
+                <div class="activity-copy">
+                  <div class="activity-head"><strong><span class="task-pill" :class="`type-${item.type}`">{{ item.title }}</span></strong><time>{{ formatTimestamp(item.time) }}</time></div>
+                  <p v-if="item.detail" class="activity-detail">{{ item.detail }}</p>
+                  <p v-if="item.note" class="activity-note">{{ item.note }}</p>
+                </div>
+              </article>
+            </div>
+            <p v-else class="activity-empty-copy">暂无进展记录</p>
+          </section>
+        </div>
+      </section>
+      </MotionSwap>
+    </MotionModal>
+
+    <MotionModal v-model="taskSurfaceOpen" :dismissible="!sheetSubmitting" :aria-label="sheetOpen ? sheetTitle : '子任务详情'">
+      <MotionSwap :view-key="sheetOpen ? 'editor-' + sheetMode : drawerNode?.id || 'empty'" horizontal :direction="sheetOpen ? 1 : -1">
+      <MobileTaskDetail v-if="isPhone && !sheetOpen && drawerNode" v-model:section="childSection" :key="drawerNode.id" class="glass-surface-heavy" child :parent-title="drawerParent?.title || detail?.root.title"
+        :node="drawerNode" :tasks="detail?.tasks || []" :entries="drawerActivity" :today="today"
+        @back="backFromChild" @close="closeDrawer" @edit="openEdit" @select="focusTask" @inspect="openActivityDetail" @add-child="openSubtask" @add-progress="openProgress" />
+      <form v-else-if="sheetOpen" class="task-sheet glass-surface-heavy" :class="{ 'child-editor': isPhone && !!drawerNode }" :aria-busy="sheetSubmitting" @submit.prevent="submitSheet">
+        <header class="sheet-header">
+          <div>
+            <h3>{{ sheetTitle }}</h3>
+            <p v-if="targetNode" class="sheet-target">{{ sheetMode === 'subtask' ? '父任务' : '应用于' }}：{{ targetNode.title }}</p>
+          </div>
+          <button data-icon-only type="button" :aria-label="isPhone && drawerNode ? '返回子任务详情' : '关闭'" :disabled="sheetSubmitting" @click="sheetOpen = false"><el-icon class="ui-action-icon" aria-hidden="true"><ArrowLeft v-if="isPhone && drawerNode" /><Close v-else /></el-icon></button>
+        </header>
+
+        <p v-if="store.error" class="sheet-error" role="alert">{{ store.error }}</p>
+
+        <div v-if="sheetMode === 'progress'" class="sheet-body" :inert="sheetSubmitting ? true : undefined">
+          <label class="field full">
+            <span>进展说明</span>
+            <textarea v-model="progressForm.note" rows="5" required placeholder="记录发生了什么、下一步是什么…"></textarea>
+          </label>
+          <label class="check-field">
+            <input v-model="progressForm.includePercent" type="checkbox" aria-label="同时更新明确完成度" />
+            <span>同时更新明确完成度</span>
+          </label>
+          <label v-if="progressForm.includePercent" class="field full">
+            <span>完成度</span>
+            <div class="range-field">
+              <input v-model.number="progressForm.percent" type="range" min="0" max="100" step="5" />
+              <output>{{ progressForm.percent }}%</output>
+            </div>
+          </label>
+        </div>
+
+        <div v-else class="sheet-body form-grid" :inert="sheetSubmitting ? true : undefined">
+          <div v-if="sheetMode === 'create'" class="field full segmented-field">
+            <span>任务类型</span>
+            <span class="kind-segment" data-glass="inset" role="group" aria-label="任务类型">
+              <button type="button" :class="{ active: form.kind === 'short' }" :aria-pressed="form.kind === 'short'" @click="form.kind = 'short'">短期待办</button>
+              <button type="button" :class="{ active: form.kind === 'long' }" :aria-pressed="form.kind === 'long'" @click="form.kind = 'long'">长期任务</button>
+            </span>
+          </div>
+          <label class="field full">
+            <span>标题</span>
+            <input v-model.trim="form.title" maxlength="200" required autofocus placeholder="清晰描述要完成的事" />
+          </label>
+          <button v-if="isPhone && !descriptionExpanded && !form.description" type="button" class="description-toggle" @click="descriptionExpanded = true"><el-icon aria-hidden="true"><Plus /></el-icon>添加描述</button>
+          <label v-if="!isPhone || descriptionExpanded || form.description" class="field full">
+            <span>描述</span>
+            <textarea v-model="form.description" :rows="isPhone ? 3 : 4" maxlength="10000" placeholder="补充背景、目标或完成标准…"></textarea>
+          </label>
+          <div class="task-date-fields field full" role="group" aria-label="任务日期">
+            <label class="field">
+              <span>开始日期</span>
+              <AppDatePicker
+                v-model="form.start_date"
+                class="task-date-input"
+                aria-label="开始日期"
+                type="date"
+                format="YYYY/MM/DD"
+                value-format="YYYY-MM-DD"
+                popper-class="glass-picker task-date-popper"
+                placement="bottom-start"
+                :clearable="false"
+              />
+            </label>
+            <label class="field">
+              <span>结束日期</span>
+              <AppDatePicker
+                v-model="form.end_date"
+                class="task-date-input"
+                aria-label="结束日期"
+                type="date"
+                format="YYYY/MM/DD"
+                value-format="YYYY-MM-DD"
+                popper-class="glass-picker task-date-popper"
+                placement="bottom-start"
+                :clearable="false"
+              />
+            </label>
+          </div>
+          <div class="field full">
+            <span>重要程度</span>
+            <span v-if="isPhone" class="importance-segment" role="group" aria-label="重要程度">
+              <button v-for="option in importanceOptions" :key="option.value" type="button" :class="{ active: form.importance === option.value }" :aria-pressed="form.importance === option.value" @click="form.importance = option.value">{{ option.label }}</button>
+            </span>
+            <el-select
+              v-else
+              v-model="form.importance"
+              aria-label="重要程度"
+              popper-class="system-select-popper"
+              placement="bottom-start"
+              :offset="0"
+              :fit-input-width="true"
+            >
+              <el-option v-for="option in importanceOptions" :key="option.value" :value="option.value" :label="option.label" />
+            </el-select>
+          </div>
+          <label v-if="sheetMode === 'edit'" class="field full">
+            <span>状态</span>
+            <el-select
+              v-model="statusForm.status"
+              popper-class="system-select-popper"
+              placement="bottom-start"
+              :offset="0"
+              :fit-input-width="true"
+            >
+              <el-option v-for="option in statusSheetOptions" :key="option.value" :value="option.value" :label="option.label" />
+            </el-select>
+          </label>
+          <label v-if="sheetMode === 'edit' && isTerminalStatus" class="field full">
+            <span>关闭说明（可选）</span>
+            <textarea v-model="statusForm.note" rows="4" placeholder="总结结果、原因或后续安排…"></textarea>
+          </label>
+          <label v-if="sheetMode === 'edit' && targetNode?.role === 'subtask'" class="field full">
+            <span>父任务</span>
+            <el-select
+              v-model="moveForm.parentId"
+              popper-class="system-select-popper"
+              placement="bottom-start"
+              :offset="0"
+              :fit-input-width="true"
+              required
+            >
+              <el-option v-for="candidate in moveCandidates" :key="candidate.id" :value="candidate.id" :label="candidate.title" />
+            </el-select>
+          </label>
+          <label v-if="sheetMode === 'edit' && targetNode?.kind === 'long' && targetNode.role === 'root' && isTerminalStatus" class="check-field">
+            <input v-model="statusForm.cascade" type="checkbox" aria-label="同时关闭所有未完成的子任务" />
+            <span>同时关闭所有未完成的子任务</span>
+          </label>
+        </div>
+
+        <footer class="sheet-footer">
+          <button v-if="sheetMode === 'edit' && targetNode?.role === 'root'" type="button" class="archive-from-edit" :disabled="sheetSubmitting" @click="openArchiveFromEditor">归档任务</button>
+          <button v-else type="button" class="cancel" :disabled="sheetSubmitting" @click="sheetOpen = false">取消</button>
+          <button type="submit" class="confirm" :disabled="sheetSubmitting">{{ sheetSubmitting ? '保存中…' : sheetAction }}</button>
+        </footer>
+      </form>
+      </MotionSwap>
+    </MotionModal>
+
+    <MotionModal v-model="archiveConfirmOpen" aria-label="归档任务">
+      <section class="archive-dialog glass-surface-heavy">
+        <div class="archive-dialog-icon" aria-hidden="true">
+          <el-icon><FolderChecked /></el-icon>
+        </div>
+        <div class="archive-dialog-copy">
+          <span>收纳已完成的计划</span>
+          <h3>归档这项任务？</h3>
+          <p>归档后将不再默认出现在任务列表中，本地数据库中的任务信息和历史记录仍会保留。</p>
+          <strong v-if="detail?.root.title">{{ detail.root.title }}</strong>
+        </div>
+        <footer class="archive-dialog-actions">
+          <button type="button" class="cancel" @click="archiveConfirmOpen = false">取消</button>
+          <button type="button" class="confirm" :disabled="store.saving" @click="confirmArchive">
+            {{ store.saving ? '归档中…' : '确认归档' }}
+          </button>
+        </footer>
+      </section>
+    </MotionModal>
+
+    <MotionModal v-model="activityDetailOpen" aria-label="记录详情">
+      <section v-if="activityDetail" class="activity-dialog glass-surface-heavy">
+        <div class="activity-dialog-head">
+          <span class="task-pill" :class="`type-${activityDetail.type}`">{{ activityDetail.title }}</span>
+          <strong>{{ activityDetail.taskTitle }}</strong>
+        </div>
+        <time>{{ formatTimestamp(activityDetail.time) }}</time>
+        <p v-if="activityDetail.detail">{{ activityDetail.detail }}</p>
+        <p v-if="activityDetail.note">{{ activityDetail.note }}</p>
+        <p v-else class="activity-dialog-empty">这条记录没有备注。</p>
+      </section>
+    </MotionModal>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { ArrowLeft, ArrowRight, Calendar, Check, Close, EditPen, Filter, FolderChecked, List, Plus, Search, TopRight } from '@element-plus/icons-vue'
+import TaskStatusMark from '@/components/tasks/TaskStatusMark.vue'
+import { useMediaQuery } from '@vueuse/core'
+import { ElMessage } from 'element-plus'
+import { useRoute, useRouter } from 'vue-router'
+import MotionModal from '@/components/motion/MotionModal.vue'
+import AppDatePicker from '@/components/controls/AppDatePicker.vue'
+import MotionSwap from '@/components/motion/MotionSwap.vue'
+import UiAction from '@/components/motion/UiAction'
+import { freezeCollectionLeave, resetCollectionEnter } from '@/utils/collectionMotion'
+import TaskCalendar from '@/components/tasks/TaskCalendar.vue'
+import TaskTree from '@/components/tasks/TaskTree.vue'
+import MobileTaskList from '@/components/tasks/MobileTaskList.vue'
+import MobileTaskDetail from '@/components/tasks/MobileTaskDetail.vue'
+import {
+  type TaskFields,
+  type TaskImportance,
+  type TaskKind,
+  type TaskNode,
+  type TaskStatus,
+} from '@/api/tasks'
+import { useAppStore } from '@/stores/app'
+import { useTasksStore } from '@/stores/tasks'
+import { useMobileSubnav } from '@/composables/useMobileSubnav'
+import {
+  buildMonthGrid,
+  formatTaskDateRange,
+  formatTimestamp,
+  shiftMonth,
+  todayLocal,
+} from '@/utils/taskDates'
+import { buildTaskActivity, taskImportanceLabel, taskStatusLabel, type TaskActivityEntry } from '@/utils/taskActivity'
+import { taskFieldsPayload } from '@/utils/taskPayloads'
+import { groupWorkspaceTasks, isTaskClosed, matchesTaskFocus, taskTiming, type TaskFocus } from '@/utils/taskWorkspace'
+
+type ViewMode = 'tasks' | 'calendar'
+type SheetMode = 'create' | 'edit' | 'subtask' | 'progress'
+
+const route = useRoute()
+const router = useRouter()
+const store = useTasksStore()
+const isPhone = useMediaQuery('(max-width: 768px)')
+const appStore = useAppStore()
+const viewMode = ref<ViewMode>(route.query.view === 'calendar' ? 'calendar' : 'tasks')
+useMobileSubnav(() => ({
+  label: '任务视图与查询',
+  layout: 'icons',
+  items: [
+    { id: 'view', label: viewMode.value === 'tasks' ? '切换到日历视图' : '切换到任务视图', icon: viewMode.value === 'tasks' ? Calendar : List, active: false, select: () => changeView(viewMode.value === 'tasks' ? 'calendar' : 'tasks') },
+    { id: 'search', label: '搜索任务', icon: Search, active: !!searchQuery.value || (queryPanelOpen.value && queryPanelMode.value === 'search'), select: () => openQueryPanel('search') },
+    { id: 'filter', label: '筛选任务', icon: Filter, active: hasAdvancedFilters.value || (queryPanelOpen.value && queryPanelMode.value === 'filter'), select: () => openQueryPanel('filter') },
+    { id: 'create', label: '新建任务', icon: Plus, active: sheetOpen.value && sheetMode.value === 'create', select: () => openCreate(viewMode.value === 'calendar' ? selectedDate.value : today) },
+  ],
+}))
+const searchQuery = ref('')
+const kindFilter = ref<'all' | TaskKind>('all')
+const statusFilter = ref<'active' | 'all' | TaskStatus>('active')
+const focusFilter = ref<TaskFocus>(['today','overdue','blocked'].includes(String(route.query.focus)) ? route.query.focus as TaskFocus : 'all')
+const queryPanelOpen = ref(false)
+const queryPanelMode = ref<'search' | 'filter'>('search')
+const mobileSearchInput = ref<HTMLInputElement | null>(null)
+const listCollapsed = ref(false)
+const mobileListScrollTop = ref(0)
+const detailSection = ref<'breakdown' | 'progress'>('breakdown')
+const childSection = ref<'breakdown' | 'progress'>('breakdown')
+const focusOptions: Array<{ value: TaskFocus; label: string }> = [
+  { value: 'all', label: '全部' }, { value: 'overdue', label: '逾期' },
+  { value: 'today', label: '今日' }, { value: 'blocked', label: '受阻' },
+]
+const today = todayLocal()
+const selectedDate = ref(typeof route.query.date === 'string' ? route.query.date : today)
+const calendarAnchor = ref(`${selectedDate.value.slice(0, 7)}-01`)
+const calendarExpandedTaskIds = ref<string[]>([])
+const drawerNodeId = ref<string | null>(null)
+const detailHeaderRef = ref<HTMLElement | null>(null)
+const activitySectionRef = ref<HTMLElement | null>(null)
+const sheetOpen = ref(false)
+const sheetSubmitting = ref(false)
+const descriptionExpanded = ref(false)
+// Phone child detail and its editor stay in one physical sheet. Closing an
+// editor returns to its node; dismissing the surface closes the entire sheet.
+const taskSurfaceOpen = computed({
+  get: () => sheetOpen.value || (isPhone.value && drawerNodeId.value !== null),
+  set: (open: boolean) => {
+    if (open || sheetSubmitting.value) return
+    sheetOpen.value = false
+    if (isPhone.value) closeDrawer()
+  },
+})
+const archiveConfirmOpen = ref(false)
+const activityDetail = ref<TaskActivityEntry | null>(null)
+const activityDetailOpen = computed({
+  get: () => activityDetail.value !== null,
+  set: (open: boolean) => { if (!open) activityDetail.value = null },
+})
+const childDetailOpen = computed({
+  get: () => drawerNodeId.value !== null,
+  set: (open: boolean) => { if (!open) drawerNodeId.value = null },
+})
+const sheetMode = ref<SheetMode>('create')
+const targetNode = ref<TaskNode | null>(null)
+const form = ref<TaskFields & { kind: TaskKind }>({
+  kind: 'short', title: '', description: '', start_date: today, end_date: today, importance: 'normal',
+})
+const progressForm = ref({ note: '', percent: 0, includePercent: false })
+const statusForm = ref<{ status: TaskStatus; note: string; cascade: boolean }>({ status: 'in_progress', note: '', cascade: false })
+const moveForm = ref({ parentId: '' })
+
+const statusOptions: Array<{ value: TaskStatus; label: string }> = [
+  { value: 'open', label: '待处理' },
+  { value: 'planned', label: '已计划' },
+  { value: 'in_progress', label: '进行中' },
+  { value: 'blocked', label: '受阻' },
+  { value: 'completed', label: '已完成' },
+  { value: 'cancelled', label: '已取消' },
+]
+const importanceOptions: Array<{ value: TaskImportance; label: string }> = [
+  { value: 'low', label: '低' },
+  { value: 'normal', label: '普通' },
+  { value: 'high', label: '重要' },
+  { value: 'urgent', label: '紧急' },
+]
+
+const detail = computed(() => store.selectedDetail)
+const drawerNode = computed(() => (drawerNodeId.value ? detail.value?.tasks.find((task) => task.id === drawerNodeId.value) || null : null))
+// Direct children of the drawer's node (drill-down list) and its parent (back row).
+const drawerChildren = computed(() => {
+  const node = drawerNode.value
+  if (!node) return []
+  return (detail.value?.tasks ?? [])
+    .filter((task) => task.parent_id === node.id)
+    .sort((a, b) => a.position - b.position)
+})
+const drawerParent = computed(() => {
+  const parentId = drawerNode.value?.parent_id
+  if (!parentId) return null
+  return detail.value?.tasks.find((task) => task.id === parentId) ?? null
+})
+const subtaskCount = computed(() => detail.value?.tasks.filter(task => task.role === 'subtask').length || 0)
+const isTerminalStatus = computed(() => statusForm.value.status === 'completed' || statusForm.value.status === 'cancelled')
+const statusSheetOptions = computed(() => targetNode.value?.kind === 'short'
+  ? statusOptions.filter((option) => ['open', 'completed', 'cancelled'].includes(option.value))
+  : statusOptions.filter((option) => option.value !== 'open'))
+const focusCounts = computed(() => ({
+  all: store.tasks.length,
+  overdue: store.tasks.filter(task => matchesTaskFocus(task, 'overdue', today)).length,
+  today: store.tasks.filter(task => matchesTaskFocus(task, 'today', today)).length,
+  blocked: store.tasks.filter(task => matchesTaskFocus(task, 'blocked', today)).length,
+}))
+const visibleTasks = computed(() => store.tasks.filter(task => matchesTaskFocus(task, focusFilter.value, today)))
+const groupedTasks = computed(() => groupWorkspaceTasks(visibleTasks.value, today))
+const suggestedTasks = computed(() => groupedTasks.value.flatMap(group => group.tasks).filter(task => !isTaskClosed(task)).slice(0, 4))
+const hasListFilters = computed(() => !!searchQuery.value || kindFilter.value !== 'all' || statusFilter.value !== 'active' || focusFilter.value !== 'all')
+const hasAdvancedFilters = computed(() => kindFilter.value !== 'all' || statusFilter.value !== 'active')
+async function openQueryPanel(mode: 'search' | 'filter') {
+  queryPanelMode.value = mode
+  queryPanelOpen.value = true
+  await nextTick()
+  if (mode === 'search' && queryPanelOpen.value && document.hasFocus()) mobileSearchInput.value?.focus({ preventScroll: true })
+}
+
+function resetListFilters() {
+  searchQuery.value = ''
+  kindFilter.value = 'all'
+  statusFilter.value = 'active'
+  focusFilter.value = 'all'
+}
+const moveCandidates = computed(() => {
+  if (!detail.value || !targetNode.value) return []
+  const blocked = descendantIds(targetNode.value.id, detail.value.tasks)
+  return detail.value.tasks.filter((task) => !blocked.has(task.id) && task.id !== targetNode.value?.id)
+})
+// Root overview shows the whole tree's history with per-task attribution;
+// the drawer gets the focused feed for its own node.
+const activity = computed(() => buildTaskActivity(detail.value?.tasks ?? [], detail.value?.progress ?? [], detail.value?.audit ?? []))
+const drawerActivity = computed(() => (drawerNode.value ? buildTaskActivity(detail.value?.tasks ?? [], detail.value?.progress ?? [], detail.value?.audit ?? [], drawerNode.value.id) : []))
+const sheetTitle = computed(() => ({
+  create: '新建任务', edit: '编辑任务', subtask: '添加子任务', progress: '记录进展',
+})[sheetMode.value])
+const sheetAction = computed(() => ({ create: '创建', edit: '保存', subtask: '添加', progress: '记录' })[sheetMode.value])
+
+function taskFilters() {
+  const activeStatuses: TaskStatus[] = ['open', 'planned', 'in_progress', 'blocked']
+  return {
+    ...(focusFilter.value !== 'all' && viewMode.value === 'tasks' ? { focus: focusFilter.value, focus_date: today } : {}),
+    ...(kindFilter.value !== 'all' ? { kinds: [kindFilter.value] } : {}),
+    ...(statusFilter.value === 'active' ? { statuses: activeStatuses } : statusFilter.value !== 'all' ? { statuses: [statusFilter.value] } : {}),
+    ...(searchQuery.value.trim() ? { query: searchQuery.value.trim() } : {}),
+  }
+}
+
+async function loadList() {
+  await store.loadTasks(taskFilters()).catch(() => undefined)
+}
+
+async function loadCalendar() {
+  const grid = buildMonthGrid(calendarAnchor.value)
+  await store.loadCalendar(grid[0].date, grid[grid.length - 1].date, { ...taskFilters(), include_subtasks: true }).catch(() => undefined)
+}
+
+async function refreshCurrent() {
+  await loadList()
+  if (viewMode.value === 'calendar') await loadCalendar()
+}
+
+async function openTask(id: string) {
+  const loaded = await store.loadDetail(id).catch(() => null)
+  if (!loaded || store.selectedTaskId !== loaded.root.id) return
+  drawerNodeId.value = null
+  listCollapsed.value = true
+  await router.replace({ query: { ...route.query, view: 'tasks', task: loaded.root.id } })
+}
+
+async function openFromCalendar(id: string) {
+  viewMode.value = 'tasks'
+  await router.replace({ query: { ...route.query, view: 'tasks' } })
+  await openTask(id)
+}
+
+function closeMobileDetail() {
+  store.clearSelection()
+  drawerNodeId.value = null
+  listCollapsed.value = false
+  const query = { ...route.query }
+  delete query.task
+  delete query.child
+  void router.replace({ query })
+}
+
+function applyView(mode: ViewMode) {
+  if (viewMode.value === mode) return
+  viewMode.value = mode
+  if (mode === 'calendar') {
+    store.clearSelection()
+    drawerNodeId.value = null
+    listCollapsed.value = false
+    void loadCalendar()
+  }
+}
+
+function changeView(mode: ViewMode) {
+  applyView(mode)
+  const query = { ...route.query }
+  query.view = mode
+  if (mode === 'calendar') delete query.task
+  void router.replace({ query })
+}
+
+// Root Dock links and browser navigation can change query without remounting.
+watch(() => route.query.view, view => applyView(view === 'calendar' ? 'calendar' : 'tasks'))
+watch(focusFilter, focus => {
+  mobileListScrollTop.value = 0
+  void router.replace({query:{...route.query,focus:focus === 'all' ? undefined : focus}})
+  void loadList()
+})
+watch(() => route.query.focus, focus => {
+  focusFilter.value = ['today','overdue','blocked'].includes(String(focus)) ? focus as TaskFocus : 'all'
+})
+
+function shiftCalendar(months: number) {
+  calendarAnchor.value = shiftMonth(calendarAnchor.value, months)
+  selectedDate.value = calendarAnchor.value
+  void updateCalendarRoute()
+  void loadCalendar()
+}
+
+function goToday() {
+  calendarAnchor.value = `${today.slice(0, 7)}-01`
+  selectedDate.value = today
+  void updateCalendarRoute()
+  void loadCalendar()
+}
+
+function selectCalendarDate(date: string) {
+  selectedDate.value = date
+  void updateCalendarRoute()
+}
+
+function updateCalendarRoute() {
+  return router.replace({ query: { ...route.query, view: 'calendar', date: selectedDate.value } })
+}
+
+function resetForm(date = today) {
+  form.value = { kind: 'short', title: '', description: '', start_date: date, end_date: date, importance: 'normal' }
+}
+
+function openCreate(date = today) {
+  store.clearError()
+  descriptionExpanded.value = false
+  sheetMode.value = 'create'
+  targetNode.value = null
+  resetForm(date)
+  sheetOpen.value = true
+}
+
+function openActivityDetail(entry: TaskActivityEntry) {
+  activityDetail.value = entry
+}
+
+// Keyboard path into the activity detail modal; the target guard keeps the
+// nested task-name button's own Enter activation from also opening the modal.
+function onActivityKeydown(event: KeyboardEvent, item: TaskActivityEntry) {
+  if (event.target !== event.currentTarget) return
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  activityDetail.value = item
+}
+
+function openEdit(task: TaskNode) {
+  store.clearError()
+  descriptionExpanded.value = !!task.description
+  sheetMode.value = 'edit'
+  targetNode.value = task
+  form.value = { kind: task.kind, title: task.title, description: task.description, start_date: task.start_date, end_date: task.end_date, importance: task.importance }
+  statusForm.value = { status: task.status, note: '', cascade: false }
+  moveForm.value.parentId = task.parent_id || ''
+  sheetOpen.value = true
+}
+
+function openCompleteShort(task: TaskNode) {
+  openEdit(task)
+  statusForm.value.status = 'completed'
+}
+
+function openSubtask(parent: TaskNode) {
+  store.clearError()
+  descriptionExpanded.value = false
+  sheetMode.value = 'subtask'
+  targetNode.value = parent
+  form.value = { kind: 'long', title: '', description: '', start_date: parent.start_date, end_date: parent.end_date, importance: parent.importance }
+  sheetOpen.value = true
+}
+
+async function revealDetailEl(el: HTMLElement | null) {
+  if (!el) return
+  await nextTick()
+  // Bring the freshly-updated detail into view: on narrow screens (and when the
+  // panel is scrolled to the tree) the header/activity live far above the tap.
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+/** Focus a task: subtasks surface in the right drawer, the root closes it back to the overview. */
+function focusTask(id: string) {
+  if (!detail.value || id === detail.value.root.id) {
+    closeDrawer()
+    return
+  }
+  childSection.value = 'breakdown'
+  drawerNodeId.value = id
+}
+
+function closeDrawer() {
+  drawerNodeId.value = null
+  if (route.query.child) {
+    const query = {...route.query}; delete query.child
+    void router.replace({query})
+  }
+}
+
+function backFromChild() {
+  childSection.value = 'breakdown'
+  if (drawerParent.value?.role === 'subtask') drawerNodeId.value = drawerParent.value.id
+  else closeDrawer()
+}
+
+// The locked page never scrolls app-main; forward panel scroll so the mobile
+// header still collapses exactly like Reader does (App.vue: onMainScroll).
+function onPanelScroll(event: Event) {
+  const el = event.target as HTMLElement
+  appStore.handleScroll(el.scrollTop)
+}
+function onMobileListScroll(event: Event) {
+  // An outgoing list can emit scroll while its viewport is being frozen.
+  // Only the active list may replace the user's saved return position.
+  if (store.selectedTaskId || route.query.task) return
+  mobileListScrollTop.value = Math.max(0, (event.target as HTMLElement).scrollTop)
+  onPanelScroll(event)
+}
+
+// Switching to another task in the list must not keep a stale drawer open.
+watch(() => store.selectedDetail?.root.id, () => {
+  drawerNodeId.value = null
+  detailSection.value = 'breakdown'
+})
+
+function openProgress(task: TaskNode) {
+  store.clearError()
+  sheetMode.value = 'progress'
+  targetNode.value = task
+  progressForm.value = { note: '', percent: task.status === 'completed' ? 100 : detail.value?.progress_percent || 0, includePercent: false }
+  sheetOpen.value = true
+}
+
+async function submitSheet() {
+  if (sheetSubmitting.value) return
+  sheetSubmitting.value = true
+  try {
+    if (sheetMode.value !== 'progress' && form.value.end_date < form.value.start_date) {
+      ElMessage.warning('结束日期不能早于开始日期')
+      return
+    }
+    const fields = taskFieldsPayload(form.value)
+    const mode = sheetMode.value
+    const writeTarget = targetNode.value
+    if (mode === 'create') await store.create(form.value.kind, fields)
+    else if (mode === 'edit' && writeTarget) {
+      await store.update(writeTarget.id, fields)
+      // Each store write refreshes selectedDetail (and its version), so chained
+      // calls pick up the fresh version automatically.
+      if (statusForm.value.status !== writeTarget.status) {
+        await store.setStatus(writeTarget.id, statusForm.value.status, statusForm.value.note || undefined, statusForm.value.cascade)
+      }
+      if (writeTarget.role === 'subtask' && moveForm.value.parentId && moveForm.value.parentId !== writeTarget.parent_id) {
+        await store.moveSubtask(writeTarget.id, moveForm.value.parentId, 9999)
+      }
+    }
+    else if (mode === 'subtask' && writeTarget) await store.addSubtask(writeTarget.id, fields)
+    else if (mode === 'progress' && writeTarget) await store.addProgress(writeTarget.id, progressForm.value.note, progressForm.value.includePercent ? progressForm.value.percent : undefined)
+    sheetOpen.value = false
+    // Surface the affected task: subtask writes open its drawer, root writes stay on the overview.
+    drawerNodeId.value = writeTarget && writeTarget.role === 'subtask' ? writeTarget.id : null
+    await refreshCurrent()
+    if (mode === 'progress' && writeTarget?.role === 'root') detailSection.value = 'progress'
+    if (mode === 'progress' && writeTarget?.role === 'subtask') childSection.value = 'progress'
+    ElMessage.success(`${sheetAction.value}成功`)
+    // Show the user what changed: progress writes reveal the new entry (in the
+    // drawer when one is open, otherwise the panel's activity section); other
+    // writes reveal the refreshed header when no drawer is open.
+    if (!isPhone.value && !drawerNodeId.value) {
+      await nextTick()
+      await revealDetailEl(mode === 'progress' ? activitySectionRef.value : detailHeaderRef.value)
+    }
+  } catch {
+    // The store exposes the actionable error in the page banner.
+  } finally {
+    sheetSubmitting.value = false
+  }
+}
+
+async function quickMove(taskId: string, parentId: string) {
+  try {
+    await store.moveSubtask(taskId, parentId, 9999)
+    await refreshCurrent()
+  } catch { /* shown by store */ }
+}
+
+function openArchiveFromEditor() {
+  sheetOpen.value = false
+  archiveConfirmOpen.value = true
+}
+
+async function confirmArchive() {
+  if (!detail.value) return
+  try {
+    await store.archive(detail.value.root.id, true)
+    archiveConfirmOpen.value = false
+    closeMobileDetail()
+    await refreshCurrent()
+    ElMessage.success('任务已归档')
+  } catch { /* shown by store */ }
+}
+
+function descendantIds(id: string, tasks: TaskNode[]) {
+  const result = new Set<string>([id])
+  let changed = true
+  while (changed) {
+    changed = false
+    for (const task of tasks) {
+      if (task.parent_id && result.has(task.parent_id) && !result.has(task.id)) {
+        result.add(task.id)
+        changed = true
+      }
+    }
+  }
+  return result
+}
+
+let filterTimer: number | undefined
+watch([searchQuery, kindFilter, statusFilter], () => {
+  mobileListScrollTop.value = 0
+  focusFilter.value = 'all'
+  window.clearTimeout(filterTimer)
+  filterTimer = window.setTimeout(() => {
+    void loadList()
+    if (viewMode.value === 'calendar') void loadCalendar()
+  }, 220)
+})
+
+onUnmounted(() => {
+  window.clearTimeout(filterTimer)
+})
+
+onMounted(async () => {
+  if (typeof route.query.task !== 'string') store.clearSelection()
+  await store.loadTasks(taskFilters()).catch(() => [])
+  if (viewMode.value === 'calendar') await loadCalendar()
+  if (viewMode.value === 'tasks' && typeof route.query.task === 'string') {
+    await openTask(route.query.task)
+    if (typeof route.query.child === 'string' && detail.value?.tasks.some(node => node.id === route.query.child)) focusTask(route.query.child)
+  }
+})
+</script>
+
+<style scoped>
+.tasks-page { min-height: 100%; max-width: 100%; color: var(--text-primary); }
+/* Task view locks the page: only the list/detail/drawer panes scroll (Reader.vue pattern). */
+.tasks-page.view-tasks { display: flex; flex-direction: column; height: calc(100vh - 64px); height: calc(100dvh - 64px); overflow: hidden; }
+.tasks-page.view-tasks > :not(.task-workspace-stage) { flex-shrink: 0; }
+.task-workspace-stage { flex: 1 1 auto; min-height: 0; }
+.glass-surface { background: var(--bg-glass); border: 1px solid var(--border-glass); box-shadow: var(--shadow-sm), var(--inset-highlight); backdrop-filter: var(--glass-content-filter); -webkit-backdrop-filter: var(--glass-content-filter); }
+.task-toolbar { min-height: 58px; display: flex; align-items: center; gap: 12px; padding: 8px 10px; margin-bottom: 14px; border-radius: 18px; }
+.view-switch { position: relative; display: grid; grid-template-columns: 1fr 1fr; width: 174px; padding: 3px; border-radius: 13px; isolation: isolate; }
+.switch-indicator { position: absolute; inset: 3px auto 3px 3px; width: calc(50% - 3px); border-radius: 10px; transition: transform var(--motion-normal) var(--ease-spring-gentle); z-index: -1; }
+.switch-indicator.calendar { transform: translateX(100%); }
+.view-switch button { min-height: 36px; border: 0; background: transparent; color: var(--text-muted); font-weight: 570; cursor: pointer; }
+.view-switch button.active { color: var(--text-primary); }
+.task-search { flex: 1; min-width: 170px; height: 40px; display: flex; align-items: center; gap: 10px; padding: 0 14px; border-radius: 12px; color: var(--text-faint); transition: background-color var(--motion-fast) var(--ease-emphasized), border-color var(--motion-fast) var(--ease-emphasized), box-shadow var(--motion-fast) var(--ease-emphasized), transform var(--motion-normal) var(--ease-spring-gentle); }
+.task-search:focus-within { background: var(--bg-glass-strong); box-shadow: 0 4px 16px rgba(0, 0, 0, .06), inset 0 1px 0 rgba(255, 255, 255, .03); }
+.task-search-icon { flex: none; color: var(--text-faint); transition: color var(--motion-fast) var(--ease-emphasized); }
+.task-search:focus-within .task-search-icon { color: var(--accent); }
+.task-search input { width: 100%; min-width: 0; padding: 0; border: 0; outline: 0; appearance: none; -webkit-appearance: none; background: transparent; color: var(--text-primary); font: inherit; font-size: 14px; }
+.task-search input::-webkit-search-cancel-button { display: none; }
+.task-search input::placeholder { color: var(--text-faint); }
+.task-search-clear { width: 22px; height: 22px; flex: none; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; background: var(--border-faint); color: var(--text-muted); font-size: 13px; line-height: 1; cursor: pointer; transition: color var(--motion-fast) ease, background var(--motion-fast) ease, transform var(--motion-instant) ease; }
+.task-search-clear:active { transform: scale(.9); }
+.task-query-sheet { padding: 32px 20px max(20px, var(--safe-bottom)); border-radius: 24px 24px 0 0; max-height: inherit; overflow-y: auto; }
+.filter-sheet-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.filter-sheet-header h3 { flex: 1; margin: 0; font-size: 19px; }
+.task-query-sheet .task-search { min-width: 0; height: 44px; }
+.task-query-sheet .query-sheet-actions { margin-top:20px; }
+.sheet-error { margin:0 20px 10px; padding:10px 12px; border-radius:12px; background:color-mix(in srgb,var(--danger) 10%,transparent); color:var(--danger); font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
+.description-toggle { display:flex; align-items:center; gap:6px; min-height:44px; padding:0; border:0; background:transparent; color:var(--text-muted); font:inherit; font-size:13px; cursor:pointer; }
+.importance-segment { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:5px; }
+.importance-segment button { min-height:44px; padding:6px 4px; border:0; border-radius:12px; background:var(--bg-hover); color:var(--text-muted); font:inherit; font-size:14px; cursor:pointer; }
+.importance-segment button.active { background:var(--accent-light); color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent-border); font-weight:600; }
+.query-filter-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 20px 0; }
+.query-filter-fields label { display: flex; flex-direction: column; gap: 8px; min-width: 0; color: var(--text-secondary); font-size: 13px; }
+.query-filter-fields :deep(.el-select) { width: 100%; min-width: 0; }
+.query-filter-fields :deep(.el-select__wrapper) { min-height: 44px; }
+.query-sheet-actions { display: flex; gap: 10px; }
+.query-sheet-actions button { flex: 1; min-height: 46px; justify-content: center; border: 1px solid var(--border-subtle); border-radius: 13px; background: var(--bg-glass); color: var(--text-primary); font: inherit; cursor: pointer; }
+.filters { display: flex; gap: 7px; margin-left: auto; }
+.filters :deep(.el-select) { width: 150px; }
+.filters :deep(.el-select__wrapper) { min-height: 40px; border-radius: 12px !important; }
+.filters :deep(.el-select__selection) { text-align: center; }
+.mobile-filter-toggle, .mobile-context-actions { display: none; }
+.field input, .field textarea { border: 1px solid var(--border-subtle); border-radius: 11px; background: var(--bg-glass); color: var(--text-primary); font: inherit; outline: none; }
+.error-banner { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; padding: 10px 13px; border: 1px solid color-mix(in srgb, #ff3b30 28%, transparent); border-radius: 13px; background: color-mix(in srgb, #ff3b30 8%, var(--bg-glass)); color: var(--text-secondary); font-size: 13px; }
+.error-banner button { border: 0; background: transparent; color: #ff3b30; cursor: pointer; }
+.error-banner-enter-active, .error-banner-leave-active { transition: opacity var(--motion-fast) ease, transform var(--motion-fast) ease; }
+.error-banner-enter-from, .error-banner-leave-to { opacity: 0; transform: translateY(-5px); }
+.task-workspace { height: 100%; flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(300px, 350px) minmax(0, 1fr); gap: 14px; transition: grid-template-columns 400ms var(--ease-spring-gentle); }
+.task-workspace.list-collapsed { grid-template-columns: 68px minmax(0, 1fr); }
+.task-detail-zone { min-width: 0; min-height: 0; display: flex; flex-direction: column; border-radius: 22px; overflow: hidden; }
+.mobile-detail-scroll { display: contents; }
+.task-list-panel { border-radius: 22px; min-height: 0; overflow: auto; }
+.task-list-panel { position: relative; min-width: 0; display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+.list-controls { flex: none; min-width: 300px; padding: 10px 12px 0; border-bottom: 1px solid var(--border-subtle); transition: opacity 140ms ease, transform 300ms var(--ease-spring-gentle); }
+.task-list-scroll { flex: 1; min-width: 300px; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 14px 10px; transition: opacity 120ms ease, transform 300ms var(--ease-spring-gentle); }
+.task-workspace.list-collapsed .list-controls, .task-workspace.list-collapsed .task-list-scroll { opacity: 0; pointer-events: none; transform: translateX(-12px); }
+.task-list-rail { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 10px 8px; opacity: 0; pointer-events: none; transform: translateX(10px); transition: opacity 140ms ease, transform 320ms var(--ease-spring-gentle); }
+.task-workspace.list-collapsed .task-list-rail { opacity: 1; pointer-events: auto; transform: none; transition-delay: 120ms; }
+.rail-expand, .rail-create, .rail-task { width: 46px; height: 46px; flex: none; display: grid; place-items: center; border: 0; border-radius: 14px; background: transparent; color: var(--text-muted); font: inherit; cursor: pointer; }
+.rail-create { margin-top: auto; color: var(--accent); font-size: 22px; }
+.rail-expand:hover, .rail-create:hover { background: var(--bg-glass-strong); }
+.rail-items { width: 100%; min-height: 0; display: grid; justify-items: center; gap: 8px; overflow-y: auto; scrollbar-width: none; }
+.rail-items::-webkit-scrollbar { display: none; }
+.rail-task { position: relative; background: color-mix(in srgb, var(--text-primary) 4%, transparent); font-weight: 650; }
+.rail-task:hover { background: color-mix(in srgb, var(--accent) 9%, transparent); }
+.rail-task.selected { background: var(--glass-action-sheen), var(--glass-action-fill); color: var(--text-primary); box-shadow: var(--glass-action-shadow); }
+.rail-task i { position: absolute; right: 5px; bottom: 5px; width: 7px; height: 7px; border: 2px solid var(--bg-glass-strong); border-radius: 50%; background: var(--text-faint); }
+.rail-task i.status-in_progress { background: var(--accent); }.rail-task i.status-blocked { background: #ff9500; }.rail-task i.status-completed { background: #34c759; }
+.panel-heading-actions { display: flex !important; align-items: center !important; gap: 2px !important; }
+.focus-filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px; padding: 3px; border-radius: 12px; }
+.focus-filters button { min-height: 36px; display: flex; align-items: center; justify-content: center; gap: 5px; border: 0; border-radius: 9px; background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; cursor: pointer; }
+.focus-filters button span { font-size: 11px; font-variant-numeric: tabular-nums; opacity: .8; }
+.list-order { margin: 10px 5px 12px; color: var(--text-faint); font-size: 11px; }
+.panel-heading { height: 45px; display: flex; align-items: center; justify-content: space-between; padding: 0 7px 6px; }
+.panel-heading div { display: flex; align-items: baseline; gap: 7px; }
+.panel-heading strong { font-size: 14px; }
+.panel-heading span { color: var(--text-faint); font-size: 11px; }
+.panel-heading button { width: 38px; height: 38px; border: 0; border-radius: 11px; background: transparent; color: var(--accent); font-size: 21px; cursor: pointer; }
+.panel-heading button:hover { background: var(--bg-glass-strong); }
+.task-list { display: grid; gap: 14px; }
+.task-group { display: grid; gap: 5px; }
+.task-group-title { display: flex; align-items: center; gap: 6px; padding: 0 7px; color: var(--text-muted); }
+.task-group-title span { font-size: 11px; font-weight: 650; }
+.task-group-title small { color: var(--text-faint); font-size: 9px; }
+.task-group-items { display: grid; gap: 5px; }
+.task-card { position: relative; min-height: 104px; display: grid; grid-template-columns: 4px minmax(0, 1fr) 18px; gap: 10px; padding: 12px 10px 11px 0; border: 1px solid transparent; border-radius: 16px; background: transparent; color: var(--text-primary); text-align: left; cursor: pointer; overflow: hidden; transition: background var(--motion-fast) ease, border-color var(--motion-fast) ease, transform var(--motion-instant) ease; }
+.task-card:hover { background: var(--bg-glass-strong); }
+.task-card:active { transform: scale(.985); }
+.task-card.selected { background: var(--bg-glass-strong); border-color: var(--border-subtle); box-shadow: var(--shadow-sm); }
+.card-accent { align-self: stretch; border-radius: 0 4px 4px 0; background: var(--accent); }
+.task-card.importance-low .card-accent { background: #8e8e93; }
+.task-card.importance-high .card-accent { background: #ff9500; }
+.task-card.importance-urgent .card-accent { background: #ff3b30; }
+.card-main { min-width: 0; display: grid; align-content: center; }
+.card-topline { min-width: 0; display: flex; align-items: center; gap: 7px; }
+.card-topline strong { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.kind-badge { flex: none; padding: 2px 6px; border-radius: 6px; background: color-mix(in srgb, var(--accent) 9%, transparent); color: var(--text-muted); font-size: 9px; }
+.card-footer { display: flex; justify-content: space-between; gap: 6px; color: var(--text-faint); font-size: 12px; }
+.danger { color: var(--danger); }
+.mini-progress { height: 3px; border-radius: 3px; background: color-mix(in srgb, var(--text-primary) 7%, transparent); overflow: hidden; }
+.mini-progress i { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width var(--motion-slow) var(--ease-spring-gentle); }
+.card-chevron { align-self: center; color: var(--text-faint); }
+.task-card-enter-active, .task-card-leave-active { transition: opacity var(--motion-normal) ease, transform var(--motion-normal) var(--ease-spring-gentle); }
+.task-card-enter-from, .task-card-leave-to { opacity: 0; transform: translateY(7px); }
+.task-skeletons { display: grid; gap: 8px; }
+.task-skeletons span { height: 96px; border-radius: 16px; background: linear-gradient(100deg, transparent 20%, color-mix(in srgb, var(--text-primary) 7%, transparent) 45%, transparent 70%); background-size: 220% 100%; animation: shimmer 1.4s infinite; }
+@keyframes shimmer { to { background-position: -220% 0; } }
+.empty-list, .empty-detail { height: 100%; display: grid; place-content: center; justify-items: center; text-align: center; color: var(--text-muted); }
+.empty-list { min-height: 200px; padding: 20px 8px; }
+.empty-list p, .empty-detail p { margin: 7px 0 15px; color: var(--text-faint); font-size: 12px; }
+.empty-list button, .activity-empty { min-height: 40px; padding: 0 13px; border: 1px solid var(--border-subtle); border-radius: 12px; background: var(--bg-glass); color: var(--accent); cursor: pointer; }
+.empty-orb { width: 54px; height: 54px; display: grid; place-items: center; margin-bottom: 13px; border-radius: 18px; background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--accent); font-size: 25px; }
+.detail-section, .task-progress-panel, .task-detail-placeholder { min-width: 0; min-height: 0; }
+.detail-summary { flex: none; padding: 24px 24px 0; min-width: 0; }
+.detail-columns { position: relative; flex: 1 1 auto; min-width: 0; min-height: 0; display: grid; grid-template-columns: 1fr; gap: 0; }
+.detail-columns.split { grid-template-columns: minmax(0, 1.12fr) minmax(310px, .88fr); }
+.detail-columns.split .task-progress-panel { border-left: 1px solid var(--border-subtle); }
+.task-progress-panel { padding: 0; border-radius: 0 22px 0 0; display: flex; flex-direction: column; overflow: hidden; }
+.progress-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 24px 28px; }
+.column-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.task-detail-placeholder, .empty-detail { flex: 1; min-height: 0; }
+.progress-column-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0; padding: 8px 24px 0; }
+.progress-column-header > div { display: flex; align-items: baseline; gap: 8px; }
+.progress-column-header span { color: var(--text-primary); font-size: 18px; font-weight: 700; letter-spacing: -.015em; }
+.progress-column-header strong { color: var(--text-faint); font-size: 11px; font-weight: 520; }
+.progress-column-header button, .column-heading button { min-height: 40px; padding: 0 12px; border: 1px solid var(--border-subtle); border-radius: 12px; background: var(--bg-glass-strong); color: var(--accent); font: inherit; font-size: 13px; cursor: pointer; }
+.column-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.column-heading > div { display: flex; align-items: baseline; gap: 8px; }
+.column-heading span { font-size: 17px; font-weight: 680; }
+.column-heading strong { color: var(--text-faint); font-size: 12px; }
+.task-breakdown .column-heading { margin: 0 -24px; padding: 8px 24px 0; }
+.mobile-detail-nav { display: none; }
+.detail-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 18px; }
+/* Keep scrollIntoView() reveals clear of the fixed mobile global header. */
+.detail-header, .activity-section { scroll-margin-top: calc(var(--mobile-header-height) + var(--safe-top) + 12px); }
+.detail-title-group { min-width: 0; flex: 1 1 180px; }
+.detail-title-group h2 { margin: 0; font-size: clamp(22px, 2.2vw, 28px); line-height: 1.35; letter-spacing: var(--tracking-tight); overflow-wrap: anywhere; }
+.detail-pills { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; }
+.detail-title-group p { max-width: 720px; margin: 8px 0 0; color: var(--text-muted); font-size: 13px; line-height: 1.6; white-space: pre-wrap; }
+.detail-actions { display: flex; gap: 6px; flex: none; }
+.detail-actions button { min-height: 38px; padding: 0 11px; border: 1px solid var(--border-subtle); border-radius: 11px; background: var(--bg-glass); color: var(--text-secondary); cursor: pointer; }
+.detail-actions .primary-action { font-weight: 600; padding-inline: 16px; }
+.detail-actions .archive-action { color: var(--text-muted); }
+.detail-actions .edit-action { display: grid; place-items: center; min-width: 38px; width: 38px; padding: 0; background: var(--bg-glass-strong); font-size: 16px; }
+.detail-context { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 12px 0 0; }
+.detail-facts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin-left: auto; color: var(--text-muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.detail-facts strong { font-size: 12px; font-weight: 570; }
+.detail-facts > span > span { margin: 0 4px; color: var(--text-faint); }
+.task-description { flex-basis: 100%; margin: 4px 0 0; color: var(--text-muted); font-size: 13px; line-height: 1.75; white-space: pre-wrap; overflow-wrap: anywhere; }
+.progress-overview { display: grid; grid-template-columns: auto minmax(30px, 1fr) auto; align-items: center; gap: 10px 14px; padding: 12px 14px; border: 1px solid var(--border-subtle); border-radius: 13px; background: color-mix(in srgb, var(--bg-glass) 72%, transparent); }
+.progress-summary { display: flex; align-items: baseline; gap: 8px; }
+.progress-summary span { color: var(--text-muted); font-size: 12px; }
+.progress-summary strong { font-size: 17px; font-variant-numeric: tabular-nums; }
+.progress-overview > small { color: var(--text-faint); font-size: 11px; }
+.detail-switch { position: relative; isolation: isolate; display: none; min-width: 200px; gap: 6px; padding: 4px; border-radius: 13px; }
+.detail-switch-indicator { position: absolute; inset: 4px auto 4px 4px; width: calc((100% - 14px) / 2); border-radius: 10px; z-index: -1; transition: transform var(--motion-slow) var(--ease-spring-playful); }
+.detail-switch-indicator.progress { transform: translateX(calc(100% + 6px)); }
+.detail-switch button { flex: 1; min-height: 40px; padding: 8px 12px; border: 0; border-radius: 10px; background: transparent; color: var(--text-muted); font: inherit; font-size: 14px; cursor: pointer; }
+.detail-switch button.active { color: var(--text-primary); font-weight: 600; }
+.detail-switch button span { margin-left: 6px; color: var(--text-faint); font-size: 12px; font-variant-numeric: tabular-nums; }
+.detail-section { margin-top: 0; padding: 0 24px 34px; border-radius: 22px 0 0 0; display: flex; flex-direction: column; overflow: hidden; }
+.activity-empty-copy { color: var(--text-faint); font-size: 13px; line-height: 1.7; }
+.progress-track { height: 8px; border-radius: 8px; background: color-mix(in srgb, var(--text-primary) 6%, transparent); overflow: hidden; }
+.progress-track i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 65%, #34c759)); transition: width var(--motion-slow) var(--ease-spring-gentle); }
+.activity-list { display: grid; gap: 0; }
+/* Dividers breathe on both sides: the next entry carries the top border plus its own padding. */
+/* Negative margins bleed the hover/focus highlight 10px past the text column so
+   the box has breathing room on both sides; content keeps its alignment. */
+.activity-item { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 9px; padding: 14px 10px; margin: 0 -10px; border-radius: 12px; cursor: pointer; transition: background var(--motion-fast) ease; }
+.activity-item:hover, .activity-item:focus-visible { background: color-mix(in srgb, var(--text-primary) 4%, transparent); }
+.activity-item:focus-visible { outline: 0; box-shadow: var(--focus-ring); }
+.activity-item + .activity-item { border-top: 1px solid var(--border-subtle); }
+.activity-copy { min-width: 0; }
+.activity-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.activity-head strong { min-width: 0; display: flex; align-items: center; gap: 7px; }
+.activity-head strong .task-pill { flex: none; }
+.activity-task { min-width: 0; padding: 0; border: 0; background: transparent; color: var(--accent); font: inherit; font-weight: 650; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.activity-task:hover { text-decoration: underline; }
+.activity-detail { margin: 6px 0 0; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.activity-note { margin: 4px 0 0; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.activity-head time { flex: none; padding-top: 1px; text-align: right; font-variant-numeric: tabular-nums; }
+.activity-dot { width: 9px; height: 9px; margin-top: 5px; border: 2px solid var(--accent); border-radius: 50%; background: var(--bg-base); }
+.activity-dot.audit { border-color: var(--text-faint); }
+.activity-item time { color: var(--text-faint); font-size: 10px; }
+.activity-dialog { display: grid; gap: 10px; min-width: min(420px, 86vw); max-width: 86vw; padding: 22px; border-radius: 20px; }
+.activity-dialog-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.activity-dialog-head strong { font-size: 15px; }
+.activity-dialog time { color: var(--text-faint); font-size: 11px; font-variant-numeric: tabular-nums; }
+.activity-dialog p { margin: 0; color: var(--text-secondary); font-size: 13px; line-height: 1.6; white-space: pre-wrap; }
+.activity-dialog p.activity-dialog-empty { color: var(--text-faint); }
+.child-task-dialog { width: 100%; max-height: min(760px, calc(100dvh - 48px)); display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border-glass); border-radius: 24px; background: var(--bg-glass-strong); box-shadow: var(--shadow-lg), var(--inset-highlight); }
+.child-dialog-header { flex: none; display: flex; flex-direction: column; gap: 10px; padding: 24px 26px 16px; }
+.child-header-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
+.child-parent-path { display: flex; align-items: center; min-width: 0; min-height: 44px; gap: 4px; }
+.child-parent-path > span { min-width: 0; overflow: hidden; color: var(--text-faint); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.child-dialog-header h3 { margin: 0; font-size: 22px; line-height: 1.3; letter-spacing: -.015em; overflow-wrap: anywhere; }
+.child-dialog-header .detail-pills { margin: 0; }
+.child-back, .child-edit, .child-close { display: grid; place-items: center; min-width: 40px; width: 40px; min-height: 40px; padding: 0; border: 1px solid var(--border-subtle); border-radius: 12px; background: var(--bg-glass); color: var(--text-secondary); font: inherit; font-size: 16px; cursor: pointer; }
+.child-back { flex: none; margin-left: -10px; color: var(--accent); }
+.child-close { color: var(--text-muted); font-size: 23px; }
+.child-header-actions { display: flex; flex: none; gap: 7px; }
+.child-dialog-scroll { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 26px 20px; }
+.child-description { margin: 0 0 14px; color: var(--text-muted); font-size: 13px; line-height: 1.7; white-space: pre-wrap; }
+.child-facts { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; padding: 12px 14px; border-radius: 13px; background: color-mix(in srgb, var(--text-primary) 4%, transparent); color: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.child-facts > span, .child-facts > strong { white-space: nowrap; }
+.child-facts > strong { margin-left: auto; }
+.child-section { margin-top: 20px; }
+.child-list { display: grid; gap: 5px; }
+.child-list button { min-height: 48px; display: grid; grid-template-columns: 22px minmax(0, 1fr) auto 18px; align-items: center; gap: 9px; padding: 6px 10px; border: 0; border-radius: 12px; background: transparent; color: var(--text-primary); text-align: left; cursor: pointer; }
+.child-list button:hover { background: var(--bg-glass); }
+.child-list button strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.detail-loading { height: 100%; display: flex; align-items: center; justify-content: center; gap: 5px; }.detail-loading span { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pulse 1s infinite alternate; }.detail-loading span:nth-child(2) { animation-delay: .15s; }.detail-loading span:nth-child(3) { animation-delay: .3s; }
+@keyframes pulse { to { opacity: .25; transform: translateY(-4px); } }
+.task-sheet { max-height: calc(100dvh - 48px); display: flex; flex-direction: column; border-radius: 24px; border: 1px solid var(--border-glass); background: var(--bg-glass-strong); box-shadow: var(--shadow-lg), var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, .03); backdrop-filter: var(--glass-panel-filter); -webkit-backdrop-filter: var(--glass-panel-filter); overflow: hidden; }
+.sheet-header { display: flex; align-items: center; justify-content: space-between; padding: 28px 28px 16px; }.sheet-header span { color: var(--text-faint); font-size: 10px; letter-spacing: .08em; }.sheet-header h3 { margin: 4px 0 0; font-size: 18px; font-weight: 700; }.sheet-target { margin: 3px 0 0; color: var(--text-secondary); font-size: 12px; }.sheet-header button { width: 38px; height: 38px; border: 0; border-radius: 12px; background: var(--bg-glass); color: var(--text-muted); font-size: 23px; cursor: pointer; transition: background var(--motion-fast) ease, color var(--motion-fast) ease, transform var(--motion-instant) ease; }.sheet-header button:hover { background: var(--bg-hover); color: var(--text-primary); }.sheet-header button:active { transform: scale(.94); }
+.sheet-body { overflow-y: auto; padding: 4px 28px 10px; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.field { display: grid; min-width: 0; gap: 7px; }
+.field.full { grid-column: 1 / -1; }.field > span:first-child { color: var(--text-muted); font-size: 11px; font-weight: 570; }.field input { height: 44px; padding: 0 11px; }.field textarea { resize: vertical; padding: 10px 11px; line-height: 1.5; }.field input:focus, .field textarea:focus { border-color: color-mix(in srgb, var(--accent) 45%, transparent); box-shadow: var(--focus-ring); }
+.task-date-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.task-date-fields > .field { gap: 8px; }
+.task-date-fields > .field > span:first-child { color:var(--text-secondary); font-size:13px; }
+.field :deep(.el-select), .field :deep(.el-date-editor) { width: 100%; }
+.field :deep(.el-select__wrapper), .field :deep(.el-input__wrapper) { min-height: 44px; border-radius: 11px !important; }
+/* Allocate the full visible height, not Element Plus' smaller default root.
+   Only the wrapper paints glass; the icon and date have separate breathing room. */
+.field :deep(.task-date-input) { width: 100%; min-width: 0; height: 44px; }
+.field :deep(.task-date-input .el-input__wrapper) { width: 100%; height: 100%; box-sizing: border-box; padding: 0 14px; gap: 10px; border-radius:14px !important; }
+.field :deep(.task-date-input .el-input__prefix) { flex: none; }
+.field :deep(.task-date-input .el-input__prefix-inner > :last-child) { margin-right: 0; }
+.field :deep(.task-date-input .el-input__inner) { min-width: 0; height: 100%; padding: 0; font-size:14px; font-variant-numeric: tabular-nums; }
+/* The phone trigger keeps AppDatePicker's Timeline appearance: 44px, 14px
+   text, 10px edge inset and an 8px icon gap. No task-only second paint layer. */
+.field :deep(.task-date-input .mobile-date-trigger) { height: 100%; }
+.kind-segment { display: grid; grid-template-columns: 1fr 1fr; padding: 3px; border-radius: 13px; }.kind-segment button { height: 38px; border: 0; border-radius: 10px; background: transparent; color: var(--text-muted); cursor: pointer; }
+.range-field { display: grid; grid-template-columns: 1fr 48px; align-items: center; gap: 12px; }.range-field input { width: 100%; padding: 0; accent-color: var(--accent); }.range-field output { color: var(--accent); font-weight: 650; text-align: right; }.check-field { display: flex; align-items: center; gap: 10px; min-height: 44px; color: var(--text-muted); font-size: 12px; cursor: pointer; }.check-field input { appearance: none; -webkit-appearance: none; position: relative; width: 20px; height: 20px; flex: none; margin: 0; border: 1px solid color-mix(in srgb, var(--text-muted) 42%, transparent); border-radius: 6px; background: var(--bg-glass); box-shadow: var(--inset-highlight); cursor: pointer; transition: background var(--motion-fast) ease, border-color var(--motion-fast) ease, transform var(--motion-instant) ease, box-shadow var(--motion-fast) ease; }.check-field input::after { content: ''; position: absolute; left: 6px; top: 3px; width: 5px; height: 9px; border: solid white; border-width: 0 2px 2px 0; opacity: 0; transform: rotate(45deg) scale(.65); transition: opacity var(--motion-fast) ease, transform var(--motion-fast) var(--ease-spring-gentle); }.check-field input:checked { border-color: var(--accent); background: var(--accent); box-shadow: 0 5px 14px color-mix(in srgb, var(--accent) 24%, transparent), var(--inset-highlight); }.check-field input:checked::after { opacity: 1; transform: rotate(45deg) scale(1); }.check-field input:focus-visible { outline: 0; box-shadow: var(--focus-ring); }.check-field:active input { transform: scale(.92); }.sheet-hint { margin: 0; color: var(--text-faint); font-size: 11px; }
+.sheet-footer { display: grid; grid-template-columns: 1fr 1.4fr; gap: 9px; padding: 16px 28px 28px; }.sheet-footer button { height: 44px; border-radius: 13px; font-weight: 620; cursor: pointer; }.sheet-footer .cancel { border: 1px solid var(--border-subtle); background: var(--bg-glass); color: var(--text-secondary); }.sheet-footer .archive-from-edit { border: 1px solid color-mix(in srgb, #ff3b30 24%, var(--border-subtle)); background: color-mix(in srgb, #ff3b30 6%, var(--bg-glass)); color: #ff3b30; }.sheet-footer .confirm { border: 0; }.sheet-footer .confirm:disabled { opacity: .55; }
+
+.field input:focus, .field textarea:focus { box-shadow: none; }
+.check-field input:focus-visible { border-color: var(--accent); box-shadow: var(--inset-highlight); }
+
+/* Rebalanced type scale: task pages are read-and-decide surfaces, not dense tables. */
+.panel-heading strong { font-size: 15px; }
+.panel-heading span { font-size: 12px; }
+.task-group-title span { font-size: 12px; }
+.task-group-title small, .kind-badge { font-size: 10px; }
+.task-card { min-height: 88px; }
+.card-topline strong { font-size: 15px; font-weight: 620; }
+.card-main { gap: 7px; }
+.card-topline strong { white-space: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.45; }
+.card-state { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.card-state .task-pill { min-height: 20px; padding: 2px 6px; font-size: 11px; }
+.priority-label { color: var(--text-faint); font-size: 11px; }
+.card-percent { margin-left: auto; color: var(--text-secondary); font-size: 12px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.danger { color: var(--color-danger, #e75d56); }
+.accent { color: var(--accent); }
+.quiet { color: var(--text-muted); }
+.empty-detail { height: auto; min-height: 100%; align-content: center; padding: 16px 0; }
+.overview-eyebrow { color: var(--accent); font-size: 12px; letter-spacing: .06em; }
+.empty-detail h2 { margin: 10px 0 3px; color: var(--text-primary); font-size: clamp(20px, 2vw, 27px); line-height: 1.4; }
+.suggested-tasks { display: grid; width: 100%; max-width: 600px; gap: 8px; margin: 16px 0 20px; }
+.suggested-tasks button { display: flex; align-items: center; gap: 16px; text-align: left; padding: 15px; border: 1px solid var(--border-subtle); border-radius: 14px; background: var(--bg-glass); color: var(--text-primary); font: inherit; cursor: pointer; }
+.suggested-tasks button:hover { background: var(--bg-glass-strong); border-color: color-mix(in srgb, var(--accent) 30%, var(--border-subtle)); }
+.suggestion-copy { min-width: 0; display: grid; gap: 6px; flex: 1; }
+.suggestion-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 600; }
+.suggestion-copy small { color: var(--text-faint); font-size: 12px; }
+.suggestion-timing { flex: none; display: inline-flex; align-items: center; gap: 8px; font-size: 12px; }
+.task-card:focus-visible, .focus-filters button:focus-visible, .detail-switch button:focus-visible, .detail-actions button:focus-visible, .suggested-tasks button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.empty-list p, .empty-detail p { font-size: 13px; }
+.detail-title-group p { font-size: 14px; line-height: 1.65; }
+.detail-actions button { font-size: 13px; }
+.activity-detail, .activity-note { font-size: 13px; }
+.activity-item time { font-size: 11px; }
+.field > span:first-child { font-size: 12px; }
+.sheet-hint, .mobile-detail-nav span { font-size: 12px; }
+
+.archive-dialog {
+  width: 100%;
+  padding: 28px;
+  border: 1px solid var(--border-glass);
+  border-radius: 24px;
+  background: var(--bg-glass-strong);
+  box-shadow: var(--shadow-lg), var(--shadow-sm), var(--inset-highlight);
+  backdrop-filter: var(--glass-panel-filter);
+  -webkit-backdrop-filter: var(--glass-panel-filter);
+}
+.archive-dialog-icon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 18px;
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  font-size: 24px;
+  box-shadow: var(--inset-highlight);
+}
+.archive-dialog-copy > span { color: var(--text-faint); font-size: 11px; font-weight: 650; letter-spacing: .08em; }
+.archive-dialog-copy h3 { margin: 5px 0 9px; color: var(--text-primary); font-size: 21px; line-height: 1.25; }
+.archive-dialog-copy p { margin: 0; color: var(--text-muted); font-size: 14px; line-height: 1.65; }
+.archive-dialog-copy strong { display: block; margin-top: 16px; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--text-primary) 4%, transparent); color: var(--text-secondary); font-size: 14px; font-weight: 620; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.archive-dialog-actions { display: grid; grid-template-columns: 1fr 1.35fr; gap: 9px; margin-top: 24px; }
+.archive-dialog-actions button { min-height: 44px; border-radius: 13px; font: inherit; font-weight: 620; cursor: pointer; }
+.archive-dialog-actions .cancel { border: 1px solid var(--border-subtle); background: var(--bg-glass); color: var(--text-secondary); }
+.archive-dialog-actions .confirm { border: 0; }
+.archive-dialog-actions .confirm:disabled { opacity: .55; cursor: wait; }
+
+:global(.task-date-popper.el-popper) { z-index: 2501 !important; }
+:global(.el-message) { z-index: 2600 !important; }
+
+@media (max-width: 1050px) {
+  .task-workspace { grid-template-columns: 300px minmax(0, 1fr); }
+  .task-toolbar { flex-wrap: wrap; }
+}
+
+@media (max-width: 768px) {
+  .tasks-page.view-tasks {
+    height:100%; min-height:0;
+  }
+  .tasks-page.mobile-focused {
+    height:100%; min-height:0;
+  }
+  .mobile-detail-pending { display:flex; flex-direction:column; align-items:flex-start; min-height:0; height:100%; }
+  .mobile-detail-pending p { align-self:center; margin:auto; color:var(--text-muted); font-size:14px; }
+  .mobile-detail-pending > button:last-child:not(.ui-action) { min-height:44px; padding:8px 16px; border:0; border-radius:12px; background:var(--bg-hover); color:var(--text-primary); font:inherit; }
+  .task-toolbar { display: none; }
+  .task-search {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    min-height: var(--tap-target);
+  }
+  .task-search input { font-size: 16px; }
+  .task-toolbar .view-switch { display: none; }
+  .view-switch button { min-height: 38px; }
+  .task-workspace { flex: 1 1 auto; min-height: 0; height: 100%; display: block; }
+  .task-list-panel, .task-detail-zone { height: 100%; min-height: 0; border-radius: 20px; }
+  .task-workspace.detail-open .task-list-panel { display: none; }
+  .task-workspace:not(.detail-open) .task-detail-zone { display: none; }
+  .tasks-page.mobile-focused .task-toolbar,
+  .tasks-page.mobile-focused .page-header { display: none; }
+  .focus-filters button { min-height: 44px; }
+  .panel-heading button { min-width: 44px; min-height: 44px; }
+  .task-card { min-height: 100px; }
+  .mobile-detail-nav {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    height: 52px;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    margin: 0 0 14px;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--border-subtle);
+    background: color-mix(in srgb, var(--bg-glass-strong) 94%, transparent);
+    backdrop-filter: var(--glass-floating-filter);
+    -webkit-backdrop-filter: var(--glass-floating-filter);
+  }
+  .mobile-detail-nav button { min-height: 44px; border: 0; background: transparent; color: var(--accent); font: inherit; font-weight: 600; }
+  .mobile-detail-nav > button:first-child { justify-self: start; }
+  .mobile-detail-nav > button:last-child { justify-self: end; }
+  .mobile-detail-nav span { color: var(--text-faint); font-size: 12px; }
+  .mobile-detail-edit { display: inline-flex; align-items: center; gap: 5px; }
+  .detail-header { display: block; }
+  .detail-title-group h2 { font-size: 24px; }
+  .detail-actions { display: none; }
+  .detail-facts { width: 100%; margin-left: 0; justify-content: space-between; }
+  .detail-switch { display: flex; width: 100%; margin-top: 16px; }
+  .detail-switch button { min-height: 44px; padding-inline: 8px; }
+  .progress-overview { grid-template-columns: auto minmax(50px, 1fr); }
+  .progress-overview > small { grid-column: 1 / -1; }
+  .suggested-tasks button { flex-wrap: wrap; }
+  .archive-dialog { padding: 38px 20px max(22px, env(safe-area-inset-bottom)); border-radius: 24px 24px 0 0; border-bottom: 0; }
+  .archive-dialog-actions button { min-height: 48px; }
+  .task-detail-zone { height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+  .mobile-detail-scroll { flex: 1 1 auto; min-height: 0; display: block; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+  .detail-section, .task-progress-panel { height: auto; display: block; overflow: visible; }
+  .detail-summary { padding: 0 16px 22px; }
+  .task-progress-panel { margin-top: 0; padding: 0; }
+  .detail-columns { display: block; border-top: 1px solid var(--border-subtle); }
+  .detail-columns.split .task-progress-panel { border-left: 0; }
+  .progress-body { padding: 0 16px 24px; overflow: visible; }
+  .column-scroll { overflow: visible; }
+  .progress-column-header { padding: 8px 16px 0; }
+  .task-breakdown .column-heading { margin: 0 -16px; padding: 8px 16px 0; }
+  .column-heading button, .progress-column-header button { display: none; }
+  .mobile-context-actions {
+    position: relative;
+    flex: none;
+    z-index: 4;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr);
+    gap: 8px;
+    padding: 10px 12px max(10px, var(--safe-bottom));
+    border-top: 1px solid var(--border-glass);
+    background: color-mix(in srgb, var(--bg-glass-strong) 94%, transparent);
+    backdrop-filter: var(--glass-floating-filter);
+    -webkit-backdrop-filter: var(--glass-floating-filter);
+  }
+  .mobile-context-actions button {
+    min-height: 46px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 13px;
+    background: var(--bg-glass);
+    color: var(--text-secondary);
+    font: inherit;
+    font-weight: 620;
+  }
+  .mobile-context-actions .complete-shortcut { grid-column: 1 / -1; }
+  .child-task-dialog { width: 100vw; max-height: min(92dvh, 820px); border-radius: 24px 24px 0 0; border-bottom: 0; }
+  .child-dialog-header { padding: 32px 20px 14px; }
+  .child-back, .child-edit, .child-close { width: 44px; min-width: 44px; min-height: 44px; }
+  .child-dialog-header h3 { font-size: 21px; }
+  .child-dialog-scroll { padding: 0 20px 18px; }
+  .task-sheet { max-height: min(90dvh, 760px); border-radius: 24px 24px 0 0; border-bottom: 0; }
+  .task-sheet.child-editor { height:min(80dvh,720px); max-height:inherit; }
+  .sheet-header { padding: 34px 20px 16px; }
+  .sheet-body { padding: 4px 20px 10px; overscroll-behavior: contain; }
+  .form-grid { grid-template-columns: 1fr; }
+  .field.full { grid-column: auto; }
+  .field input, .field textarea, .field :deep(.el-select__wrapper), .field :deep(.el-input__wrapper) { min-height: 48px; font-size: 16px; }
+  .sheet-footer { padding: 16px 20px max(20px, var(--safe-bottom)); }
+  .sheet-footer button { min-height: 48px; }
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+  .detail-switch-indicator { transition: none; }
+  .progress-body, .column-scroll { animation: none !important; }
+  .task-workspace, .list-controls, .task-list-scroll, .task-list-rail, .switch-indicator, .task-card, .mini-progress i, .progress-track i, .check-field input, .check-field input::after, .error-banner-enter-active, .error-banner-leave-active, .task-card-enter-active, .task-card-leave-active { transition-duration: 1ms !important; }.task-skeletons span, .detail-loading span { animation: none !important; }
+}
+@media (prefers-reduced-transparency: reduce) { .glass-surface, .task-sheet, .archive-dialog { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--bg-primary); }:global(.task-date-popper.el-popper) { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; background: var(--bg-primary) !important; } }
+@media (prefers-contrast: more) { .task-card.selected, .progress-overview, .detail-section, .check-field input { border-color: var(--text-muted); } }
+</style>

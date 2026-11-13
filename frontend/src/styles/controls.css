@@ -1,0 +1,260 @@
+/* Shared control geometry/state, separate from optical materials and layout.
+   Ordinary fields use tint; Select background optics live in materials.css. */
+/* All icon-only controls center a real SVG box rather than a font baseline.
+   Keep local hit sizes, large Reader controls and library behavior intact. */
+:root[data-theme] :is([data-direction-button], [data-icon-only], .ui-action, .el-dialog__headerbtn, .el-drawer__close-btn, .el-message-box__headerbtn, .el-picker-panel__icon-btn, .el-pagination .btn-prev, .el-pagination .btn-next) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+}
+.ui-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 1em;
+  height: 1em;
+  font-size: 20px;
+  line-height: 1;
+  pointer-events: none;
+}
+.ui-action-icon > svg, .ui-action__glyph { display: block; }
+:is([data-icon-only], .ui-action) svg { display: block; pointer-events: none; }
+:root[data-theme] [data-icon-only] > .el-icon { flex: none; line-height: 1; }
+:root[data-theme] .el-button[data-icon-only] > span { display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
+/* Element Plus otherwise keeps the slot icon beside its loading spinner. */
+:root[data-theme] .el-button[data-icon-only].is-loading > span { display: none; }
+:root[data-theme] .el-button[data-icon-only].is-loading > .el-icon { margin-inline: 0; }
+.ui-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 1em;
+  height: 1em;
+  font-size: 18px;
+  line-height: 1;
+  transform-origin: center;
+  pointer-events: none;
+}
+.ui-chevron > svg { display: block; width: 100%; height: 100%; }
+[data-direction-button] > .el-icon { flex: none; line-height: 1; }
+[data-direction-button] svg { display: block; }
+[data-direction-button][aria-expanded] > .ui-chevron {
+  transition: transform var(--motion-normal) var(--ease-spring-gentle);
+}
+[data-direction-button][aria-expanded="true"] > .ui-chevron { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) {
+  [data-direction-button][aria-expanded] > .ui-chevron { transition: none; }
+}
+/* Timeline and Wiki are the shared search reference. Width/flex belongs to the
+   page; optical weight, hit height, corner, icon and typography do not. */
+:root[data-theme] [data-glass="search"] {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  height: 44px;
+  min-height: 44px;
+  gap: 10px;
+  padding: 0 14px;
+  border: 1px solid var(--material-border);
+  border-radius: 14px;
+  color: var(--text-faint);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+}
+:root[data-theme] [data-glass="search"] input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+}
+:root[data-theme] [data-glass="search"] > .el-icon { flex: none; font-size: 16px; color: var(--text-faint); }
+:root[data-theme] [data-glass="search"]:focus-within > .el-icon { color: var(--accent); }
+:root[data-theme] [data-glass="search"] button[data-icon-only] {
+  flex: none;
+  width: 44px;
+  height: 40px;
+  margin-inline: 0 -10px;
+}
+@media (max-width: 768px) {
+  :root[data-theme] [data-glass="search"] { min-width: 0; font-size: 16px; }
+}
+/* ── Glass Calendar Picker ── */
+.glass-picker {
+  border-radius: 20px !important;
+  border: 1px solid var(--border-glass) !important;
+  background: var(--bg-glass-strong) !important;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.1), 0 4px 16px rgba(0,0,0,0.05), var(--inset-highlight) !important;
+  overflow: hidden;
+}
+.glass-picker .el-date-range-picker { background: transparent !important; }
+.glass-picker .el-date-range-picker__content { padding: 8px !important; }
+.glass-picker .el-date-range-picker__header,
+.glass-picker .el-date-picker__header { margin: 4px 8px !important; }
+.glass-picker .el-date-range-picker__header button,
+.glass-picker .el-date-picker__header button {
+  border-radius: 8px !important; border: none !important;
+  background: var(--bg-glass-subtle) !important; color: var(--text-secondary) !important;
+  transition: background 0.2s ease !important;
+}
+.glass-picker .el-date-range-picker__header button:hover,
+.glass-picker .el-date-picker__header button:hover { background: var(--bg-hover) !important; }
+.glass-picker .el-date-table th {
+  border-bottom: 1px solid var(--border-faint) !important;
+  color: var(--text-muted) !important; font-size: 12px !important;
+}
+.glass-picker .el-date-table td .el-date-table-cell { border-radius: 10px !important; transition: background-color var(--motion-fast) var(--ease-emphasized) !important; }
+.glass-picker .el-date-table td .el-date-table-cell:hover { background: var(--accent-light) !important; }
+.glass-picker .el-date-table td .el-date-table-cell__number { color: var(--text-secondary) !important; }
+.glass-picker .el-date-table td.current:not(.disabled) .el-date-table-cell__number,
+.glass-picker .el-date-table td.start-date .el-date-table-cell,
+.glass-picker .el-date-table td.end-date .el-date-table-cell {
+  background: var(--accent) !important; border-radius: 10px !important; color: var(--accent-contrast) !important;
+}
+.glass-picker .el-date-table td.in-range .el-date-table-cell { background: var(--accent-light) !important; }
+.glass-picker .el-date-table td.today .el-date-table-cell__number { color: var(--accent) !important; font-weight: 700 !important; }
+.glass-picker .el-date-table td.start-date .el-date-table-cell,
+.glass-picker .el-date-table td.end-date .el-date-table-cell { background: var(--accent) !important; }
+.glass-picker .el-date-table td.start-date .el-date-table-cell__number,
+.glass-picker .el-date-table td.end-date .el-date-table-cell__number,
+.glass-picker .el-date-table td.today.current .el-date-table-cell__number { color: var(--accent-contrast) !important; }
+.glass-picker .el-picker-panel__footer {
+  background: transparent !important; border-top: 1px solid var(--border-faint) !important;
+}
+.glass-picker .el-picker-panel__footer button {
+  border-radius: 10px !important; background: var(--bg-glass-subtle) !important; color: var(--text-secondary) !important;
+}
+.glass-picker .el-popper__arrow { display: none !important; }
+
+:root[data-theme] :is(.el-input__wrapper, .el-select__wrapper, .el-range-editor, .el-textarea__inner) {
+  min-height: var(--control-height);
+  border-radius: var(--radius-control) !important;
+  color: var(--text-primary);
+  transition: background-color var(--motion-fast) var(--ease-emphasized), box-shadow var(--motion-fast) var(--ease-emphasized);
+}
+:root[data-theme] :is(.el-input__wrapper, .el-range-editor, .el-textarea__inner) {
+  background: var(--glass-field-fill) !important;
+  box-shadow: inset 0 0 0 1px var(--glass-field-edge) !important;
+}
+:root[data-theme] :is(.el-input__wrapper, .el-range-editor, .el-textarea__inner):focus-within,
+:root[data-theme] :is(.el-input__wrapper.is-focus, .el-textarea__inner:focus) {
+  box-shadow: inset 0 0 0 1.5px var(--accent-border) !important;
+  background: color-mix(in srgb, var(--glass-solid) 78%, transparent) !important;
+}
+:root[data-theme] :is(.el-input__inner, .el-range-input, .el-select__selected-item, .el-textarea__inner) { color: var(--text-primary) !important; }
+:root[data-theme] :is(input, textarea)::placeholder,
+:root[data-theme] :is(.el-select__placeholder.is-transparent, .el-select__input::placeholder) { color: var(--text-faint) !important; }
+:root[data-theme] .el-form-item.is-error :is(.el-input__wrapper, .el-textarea__inner) {
+  box-shadow: inset 0 0 0 1.5px var(--glass-danger-label) !important;
+}
+:root[data-theme] .el-form-item.is-error .el-select__wrapper { --glass-control-surface-edge: var(--glass-danger-label); }
+:root[data-theme] .el-button {
+  min-height: var(--control-height);
+  border-radius: var(--radius-control) !important;
+  font-weight: 580 !important;
+}
+:root[data-theme] .el-button--primary { font-weight: 650 !important; }
+:root[data-theme] :is(.el-button, .glass-btn, .glass-icon-btn) .el-icon { font-size: 18px; }
+:root[data-theme] .ui-icon-action .el-icon { font-size: 22px; }
+:root[data-theme] .el-switch { --el-switch-on-color: var(--accent); --el-switch-off-color: var(--glass-field-edge); }
+:root[data-theme] .el-switch__core { background: var(--glass-field-edge) !important; border-color: transparent !important; }
+:root[data-theme] .el-switch.is-checked .el-switch__core { background: var(--accent) !important; }
+:root[data-theme] :is(.el-checkbox, .el-radio) { --el-checkbox-checked-text-color: var(--text-primary); --el-radio-checked-text-color: var(--text-primary); }
+:root[data-theme] .el-checkbox__input.is-checked .el-checkbox__inner,
+:root[data-theme] .el-radio__input.is-checked .el-radio__inner { background: var(--accent); border-color: var(--accent); }
+/* A menu is one rounded surface in either placement. Clip scroll contents and
+   option highlights to its outline without clipping the outer box shadow. */
+:root[data-theme] .el-popper:has(.el-select-dropdown) {
+  border-radius: 14px !important;
+  overflow: hidden;
+}
+:root[data-theme] .el-popper:has(.el-select-dropdown) .el-popper__arrow { display: none !important; }
+:root[data-theme] .el-popper:has(.el-select-dropdown) .el-select-dropdown__list { padding: 5px !important; }
+:root[data-theme] .el-popper:has(.el-select-dropdown) .el-select-dropdown__item { border-radius: 9px; }
+:root[data-theme] .el-select-dropdown__item { color: var(--text-secondary); }
+:root[data-theme] .el-select-dropdown__item.is-selected { color: var(--accent); font-weight: 650; }
+:root[data-theme] .el-select-dropdown__item:hover { background: var(--bg-hover); }
+:root[data-theme] :is(.el-input__icon, .el-range__icon, .el-range__close-icon, .el-range-separator) { color: var(--text-muted); }
+:root[data-theme] .el-checkbox__inner::after { border-color: var(--accent-contrast); }
+:root[data-theme] .el-radio__inner::after { background: var(--accent-contrast); }
+:root[data-theme] .el-tag { background: var(--glass-control-fill); border-color: var(--glass-edge-soft); color: var(--text-secondary); }
+:root[data-theme] .el-tag--success { color: var(--glass-success-label); }
+:root[data-theme] .el-tag--warning { color: var(--glass-warning-label); }
+:root[data-theme] .el-tag--danger { color: var(--glass-danger-label); }
+:root[data-theme] .el-slider__runway { background: var(--glass-field-edge); }
+:root[data-theme] .el-slider__bar { background: var(--accent); }
+:root[data-theme] .el-slider__button { background: var(--glass-solid); border-color: var(--accent); }
+:root[data-theme] .el-input-number__increase, :root[data-theme] .el-input-number__decrease { background: var(--glass-field-fill); color: var(--text-muted); border-color: var(--glass-field-edge); }
+:root[data-theme] .el-dialog__header { padding: 20px 56px 12px 24px; }
+:root[data-theme] .el-dialog__body { padding: 12px 24px 24px; color: var(--text-secondary); }
+:root[data-theme] .el-dialog__footer { padding: 0 24px 24px; }
+:root[data-theme] .el-dialog__close { color: var(--text-muted); }
+/* Native editors own their surface. Component inputs are transparent text
+   inside a wrapper; painting them again creates an inset box and steals space. */
+:root[data-theme] :is(.field input:not([type="range"]):not([type="checkbox"]):not(.el-input__inner):not(.el-select__input), .field textarea:not(.el-textarea__inner), .glass-textarea, .document-editor textarea) {
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid var(--glass-field-edge);
+  border-radius: var(--radius-control);
+  background: var(--glass-field-fill);
+  color: var(--text-primary);
+  font: inherit;
+  outline: none;
+}
+:root[data-theme] .document-editor textarea { font-family: var(--font-mono); }
+:root[data-theme] :is(.field input:not([type="range"]):not([type="checkbox"]):not(.el-input__inner):not(.el-select__input), .field textarea:not(.el-textarea__inner), .glass-textarea, .document-editor textarea):focus {
+  border-color: var(--accent-border);
+  box-shadow: inset 0 0 0 .5px var(--accent-border);
+}
+:root[data-theme] :is(.el-button.is-disabled, button:disabled, input:disabled, textarea:disabled) { cursor: not-allowed; }
+:root[data-theme] :is(button:disabled, input:disabled, textarea:disabled) { opacity: .6; }
+:root[data-theme] .el-button.is-loading { cursor: progress; }
+:root[data-theme] .el-dialog { border-radius: var(--radius-panel) !important; overflow: hidden; }
+:root[data-theme] .el-dialog__header { padding-right: 44px !important; }
+:root[data-theme] .el-dialog__headerbtn { width: 44px; height: 44px; top: 8px; right: 8px; border-radius: var(--radius-control); }
+:root[data-theme] .el-dialog__title { font-weight: 650; }
+:root[data-theme] .el-descriptions__body { background: transparent; }
+:root[data-theme] .el-message-box { width: min(420px, calc(100vw - 24px)); max-height: calc(var(--visual-viewport-height, 100dvh) - 32px); overflow-y: auto; border-radius: var(--radius-panel); }
+:root[data-theme] .el-message-box__header { padding: 20px 48px 12px 20px; }
+:root[data-theme] .el-message-box__content { color: var(--text-secondary); padding: 8px 20px 20px; overflow-wrap: anywhere; }
+:root[data-theme] .el-message-box__btns { padding: 0 20px 20px; }
+:root[data-theme] .el-message-box__headerbtn { width: 44px; height: 44px; top: 8px; right: 8px; }
+:root[data-theme] .el-descriptions__label { background: var(--glass-field-fill) !important; color: var(--text-muted) !important; }
+:root[data-theme] .el-descriptions__content { background: transparent !important; color: var(--text-primary) !important; overflow-wrap: anywhere; }
+:root[data-theme] .el-descriptions__cell { border-color: var(--glass-edge-soft) !important; }
+@media (max-width: 768px) {
+  /* Element Plus dialogs share the bottom origin of MotionModal. Body alone
+     scrolls, so submit and close remain reachable above the soft keyboard. */
+  :root[data-theme] .el-overlay-dialog { display: flex; align-items: flex-end; padding: 0; top: var(--visual-viewport-top, 0px); bottom: auto; height: var(--visual-viewport-height, 100dvh); }
+  :root[data-theme] .el-dialog {
+    display: flex; flex-direction: column; padding: 0;
+    width: 100% !important; max-width: none !important; margin: 0 !important;
+    max-height: min(88dvh, calc(var(--visual-viewport-height, 100dvh) - 16px)) !important;
+    border-radius: var(--radius-panel) var(--radius-panel) 0 0 !important;
+  }
+  :root[data-theme] .el-dialog__header { flex: none; padding: 24px 56px 12px 20px !important; }
+  :root[data-theme] .el-dialog__body { min-height: 0; max-height: none !important; overflow-y: auto; padding: 8px 20px 16px !important; overscroll-behavior: contain; }
+  :root[data-theme] .el-dialog__footer { flex: none; padding: 12px 20px calc(16px + var(--safe-bottom)); }
+  :root[data-theme] .el-dialog .el-form-item:last-child { margin-bottom: 0; }
+  .dialog-fade-enter-from .el-dialog, .dialog-fade-leave-to .el-dialog { transform: translate3d(0, 100%, 0) !important; }
+  :root[data-theme] .el-date-table td .el-date-table-cell { min-height: 40px; }
+}
+@media (hover: hover) and (pointer: fine) {
+  :root[data-theme] :is(.el-input__wrapper, .el-range-editor):not(:focus-within):hover { box-shadow: inset 0 0 0 1px var(--text-faint) !important; }
+}
+@media (prefers-contrast: more), (forced-colors: active) {
+  :root[data-theme] :is(.el-input__wrapper, .el-select__wrapper, .el-range-editor, .el-textarea__inner):focus-within { outline: 2px solid var(--text-primary) !important; outline-offset: 2px; }
+}
+@media (forced-colors: active) {
+  :root[data-theme] { --text-primary: CanvasText; --text-secondary: CanvasText; --text-muted: CanvasText; --text-faint: GrayText; --glass-field-fill: Canvas; --glass-field-edge: CanvasText; --accent-border: Highlight; }
+}

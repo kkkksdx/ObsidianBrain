@@ -1,0 +1,43 @@
+# Rust
+target/
+debug/
+**/*.rs.bk
+*.pdb
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+node_modules/
+
+# Embedded frontend (copied by Makefile for rust-embed)
+backend/frontend/
+# Frontend build output (used by rust-embed)
+frontend/dist/
+frontend/dist_new/
+frontend/dist.stale-root-owned/
+website/node_modules/
+website/dist/
+
+# Data (runtime — ~/.obsidian-brain/ is outside the repo, but local data/ too)
+data/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# cargo-mutants
+**/mutants.out*/
+
+# Superpowers brainstorm/plan scratch
+.superpowers/

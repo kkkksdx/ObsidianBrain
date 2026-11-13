@@ -1,0 +1,373 @@
+/* ObsidianBrain "知流 Motion" — shared motion, depth and accessibility rules. */
+:root {
+  --motion-instant: 100ms;
+  --motion-fast: 180ms;
+  --motion-normal: 260ms;
+  --motion-slow: 360ms;
+  --motion-page: 220ms;
+  --motion-distance-sm: 6px;
+  --motion-distance-md: 16px;
+  --ease-emphasized: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring-gentle: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring-playful: cubic-bezier(0.34, 1.35, 0.64, 1);
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--accent) 24%, transparent);
+  --transition-interactive:
+    transform var(--motion-instant) var(--ease-emphasized),
+    opacity var(--motion-fast) var(--ease-emphasized),
+    color var(--motion-fast) var(--ease-emphasized),
+    background-color var(--motion-fast) var(--ease-emphasized),
+    border-color var(--motion-fast) var(--ease-emphasized),
+    box-shadow var(--motion-fast) var(--ease-emphasized);
+}
+
+/* Compact actions share one geometry; semantics stay in labels/tooltips. */
+.ui-icon-action, .ui-action {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--bg-glass);
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 22px;
+}
+.ui-icon-action .el-icon { font-size: 22px; }
+.ui-action__glyph { width: 21px; height: 21px; flex: none; }
+.ui-action__glyph.is-loading { animation: ui-action-spin 900ms linear infinite; }
+@keyframes ui-action-spin { to { transform: rotate(360deg); } }
+.ui-action { vertical-align: middle; }
+/* Inline content actions stay flat; the enclosing pane already supplies depth. */
+.ui-action--quiet {
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  box-shadow: none;
+}
+.ui-action--quiet .ui-action__glyph { width: 20px; height: 20px; }
+.ui-action--quiet.is-danger { color: var(--glass-danger-label); }
+@media (hover: hover) {
+  .ui-action--quiet:not(:disabled):hover { background: var(--bg-hover); color: var(--text-primary); }
+  .ui-action--quiet.is-danger:not(:disabled):hover { color: var(--glass-danger-label); }
+}
+.ui-action--quiet:not(:disabled):active { background: var(--accent-light); color: var(--accent); }
+.ui-action--quiet.is-danger:not(:disabled):active { color: var(--glass-danger-label); }
+.ui-action--quiet:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ui-action--quiet:disabled { opacity: .45; cursor: not-allowed; }
+
+/* Spatial list changes: the selected/filtering collection moves as a whole. */
+/* Active-only precedence: scoped card hover styles cannot override FLIP. */
+.collection-flow-move { transition: transform 380ms var(--ease-spring-gentle) !important; }
+.collection-flow-enter-active { transition: transform 360ms var(--ease-spring-gentle), opacity 240ms ease !important; }
+.collection-flow-leave-active { position: absolute !important; pointer-events: none; transition: transform 220ms var(--ease-emphasized), opacity 180ms ease !important; }
+.collection-flow-enter-from { opacity: 0; transform: translateY(18px) scale(.96) !important; }
+.collection-flow-leave-to { opacity: 0; transform: translateY(-8px) scale(.96) !important; }
+
+.content-arrive-enter-active { transition: transform 360ms var(--ease-spring-gentle), opacity 240ms ease; }
+.content-arrive-leave-active { transition: opacity 160ms ease; }
+.content-arrive-enter-from { opacity: 0; transform: translateY(16px); }
+.content-arrive-leave-to { opacity: 0; }
+
+/* A quick compression and soft release supplies tactile feedback. Never apply
+   this to static cards or controls whose transform positions them on screen. */
+:is(.ui-icon-action, .ui-action, .mobile-compose-action, .mobile-filter-summary, .bc-more, .focus-filters button, .panel-heading-actions button, .detail-switch button, .calendar-nav button, .viewer-close, .viewer-zoom-btn, .settings-nav button) {
+  transition: transform 280ms var(--ease-spring-playful), color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease, border-color var(--motion-fast) ease;
+}
+:is(.ui-icon-action, .ui-action, .mobile-compose-action, .mobile-filter-summary, .bc-more, .focus-filters button, .panel-heading-actions button, .detail-switch button, .calendar-nav button, .viewer-close, .viewer-zoom-btn, .settings-nav button):not(:disabled):active {
+  transform: scale(.94);
+  transition-duration: 70ms;
+}
+
+html.motion-overlay-open .app-main,
+html.motion-overlay-open .pane-center,
+html.motion-overlay-open .memo-scroll,
+html.motion-overlay-open .task-list-scroll,
+html.motion-overlay-open .task-detail-zone,
+html.motion-overlay-open .pdf-viewer {
+  overscroll-behavior: none !important;
+}
+
+/* Feedback starts on pointer-down; keyboard users receive an equally clear ring. */
+button,
+a,
+[role="button"],
+.el-button,
+.el-tag,
+.el-switch,
+.el-checkbox,
+.el-radio {
+  touch-action: manipulation;
+}
+
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+.el-button:focus-visible,
+.el-drawer:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring) !important;
+}
+
+/* Text entry keeps a calm material response without a detached rectangular halo. */
+input:focus,
+input:focus-visible,
+textarea:focus,
+textarea:focus-visible,
+select:focus,
+select:focus-visible,
+[contenteditable="true"]:focus,
+[contenteditable="true"]:focus-visible {
+  outline: none !important;
+}
+
+.el-button,
+.glass-btn,
+.glass-icon-btn,
+.collapse-btn,
+.path-trigger,
+.pane-title-btn,
+.fab,
+.chip,
+.toc-item,
+.ft-row,
+.nav-item {
+  transition-property: transform, opacity, color, background-color, border-color, box-shadow;
+  transition-duration: var(--motion-fast);
+  transition-timing-function: var(--ease-emphasized);
+}
+
+.el-button:active,
+.glass-btn:active,
+.glass-icon-btn:active,
+.collapse-btn:active,
+.path-trigger:active,
+.pane-title-btn:active,
+.fab:active,
+.chip:active,
+.toc-item:active,
+.ft-row:active,
+.nav-item:active {
+  transform: scale(0.965);
+  transition-duration: var(--motion-instant);
+}
+
+.module-card:active,
+.repo-card[role="button"]:active {
+  transform: scale(0.985);
+  transition-duration: 140ms;
+}
+
+/* Material layers arrive as objects, but large blur radii never animate per-frame. */
+.el-overlay,
+.dialog-overlay,
+.path-overlay,
+.image-viewer-overlay {
+  transition: opacity var(--motion-fast) var(--ease-emphasized);
+}
+
+.el-dialog,
+.el-drawer {
+  transform-origin: center top;
+  transition-property: transform, opacity, box-shadow !important;
+  transition-duration: var(--motion-normal) !important;
+  transition-timing-function: var(--ease-spring-gentle) !important;
+}
+
+.el-message {
+  transform-origin: center top;
+}
+
+/* Attached placement stays gapless; shared control geometry owns all corners. */
+.system-select-popper.el-popper {
+  z-index: 2501 !important;
+  margin: 0 !important;
+  background: var(--bg-glass-strong) !important;
+  box-shadow: var(--shadow-lg), var(--inset-highlight) !important;
+  backdrop-filter: var(--glass-panel-filter) !important;
+  -webkit-backdrop-filter: var(--glass-panel-filter) !important;
+}
+.system-select-popper .el-select-dropdown__item {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+}
+.system-select-popper .el-select-dropdown__item.selected {
+  background: color-mix(in srgb, var(--accent) 10%, transparent) !important;
+}
+.system-toolbar-popper .el-select-dropdown__item {
+  justify-content: center;
+  padding: 0 28px 0 10px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .el-button:not(.is-disabled):not(:active):hover,
+  .glass-btn:not(:disabled):not(:active):hover {
+    transform: translateY(-1px);
+  }
+}
+
+/* Motion and transparency are independent accessibility preferences. */
+@media (prefers-reduced-motion: reduce) {
+  .collection-flow-move, .collection-flow-enter-active, .collection-flow-leave-active, .content-arrive-enter-active, .content-arrive-leave-active { transition: opacity 100ms ease !important; }
+  .collection-flow-enter-from, .collection-flow-leave-to, .content-arrive-enter-from { transform: none !important; }
+  :is(.ui-icon-action, .ui-action, .mobile-compose-action, .mobile-filter-summary, .bc-more, .focus-filters button, .panel-heading-actions button, .detail-switch button, .calendar-nav button, .viewer-close, .viewer-zoom-btn, .settings-nav button) { transform: none !important; transition: none !important; }
+  :root {
+    --motion-instant: 80ms;
+    --motion-fast: 120ms;
+    --motion-normal: 160ms;
+    --motion-slow: 180ms;
+    --motion-page: 140ms;
+    --duration-fast: 120ms;
+    --duration-normal: 160ms;
+    --duration-slow: 180ms;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+
+  .ambient-bg,
+  .empty-icon,
+  .day-dot,
+  .loading-dots span,
+  .memo-card,
+  .fs-ui {
+    animation: none !important;
+  }
+
+  .page-slide-enter-from,
+  .page-slide-leave-to,
+  .page-next-enter-from,
+  .page-next-leave-to,
+  .page-prev-enter-from,
+  .page-prev-leave-to,
+  .overlay-pop-enter-from,
+  .overlay-pop-leave-to,
+  .dialog-enter-from .dialog-content,
+  .dialog-leave-to .dialog-content {
+    transform: none !important;
+  }
+  :is(.el-button, .glass-btn, .glass-icon-btn, .collapse-btn, .path-trigger, .pane-title-btn, .fab, .chip, .toc-item, .ft-row, .nav-item):is(:active, :hover) {
+    transform: none !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .sidebar,
+  .mobile-global-header,
+  .mobile-dock,
+  .reader-mobile-toolbar,
+  .mobile-context-actions,
+  .el-card,
+  .el-dialog,
+  .el-drawer,
+  .glass-surface,
+  .glass-surface-heavy,
+  .pane,
+  .path-card,
+  .el-message,
+  .reader-page:fullscreen .markdown-body h1:first-of-type {
+    background: var(--bg-glass-strong) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .system-select-popper.el-popper {
+    background: var(--bg-primary) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .sidebar,
+  .mobile-global-header,
+  .el-card,
+  .el-dialog,
+  .el-drawer,
+  .glass-surface,
+  .pane,
+  .path-card,
+  .reader-page:fullscreen .markdown-body h1:first-of-type {
+    background: var(--bg-base) !important;
+    border-color: var(--text-muted) !important;
+  }
+
+  button:focus-visible,
+  a:focus-visible,
+  [role="button"]:focus-visible {
+    outline: 2px solid var(--accent) !important;
+    outline-offset: 2px;
+  }
+}
+
+/* Keep sustained decorative work off small and coarse-pointer devices. */
+@media (max-width: 768px), (pointer: coarse) {
+  .ambient-bg {
+    animation: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  html.motion-overlay-open .app-main,
+  html.motion-overlay-open .pane-center,
+  html.motion-overlay-open .memo-scroll,
+  html.motion-overlay-open .task-list-scroll,
+  html.motion-overlay-open .task-detail-zone,
+  html.motion-overlay-open .pdf-viewer {
+    overflow: hidden !important;
+  }
+
+  .mobile-dock,
+  .reader-mobile-toolbar,
+  .mobile-context-actions {
+    transform: translateZ(0);
+  }
+
+  .el-overlay-dialog {
+    display: flex;
+    align-items: flex-end;
+    padding: calc(var(--safe-top) + 8px) 8px 0;
+  }
+
+  .el-popper {
+    max-width: calc(100vw - 16px);
+    border-radius: 14px !important;
+  }
+
+  .el-checkbox__inner,
+  .el-radio__inner {
+    width: 20px;
+    height: 20px;
+  }
+
+  .el-checkbox__input.is-checked .el-checkbox__inner,
+  .el-radio__input.is-checked .el-radio__inner {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  /* Long feeds skip layout and paint work until they approach the viewport. */
+  .memo-card,
+  .article-card,
+  .repo-card,
+  .question-card,
+  .gap-card {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 240px;
+  }
+
+  .memo-card { contain-intrinsic-size: auto 320px; }
+}

@@ -1,0 +1,59 @@
+import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+import test from 'node:test'
+
+const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8')
+
+test('website consumes application optics without duplicating theme recipes', async () => {
+  const [materials, main, base] = await Promise.all([read('src/materials.css'), read('src/main.js'), read('src/style.css')])
+  assert.match(materials, /@import ['"]\.\.\/\.\.\/frontend\/src\/styles\/materials\.css['"]/)
+  assert.match(main, /import ['"]\.\/materials\.css['"]/)
+  assert.doesNotMatch(base, /--(?:bg-glass(?:-strong|-subtle)?|border-glass|glass-blur|orb-opacity):/)
+})
+
+test('every website entry marks floating and structural chrome consistently', async () => {
+  for (const path of ['index.html', 'manual/index.html', 'llm-wiki/index.html']) {
+    const html = await read(path)
+    assert.match(html, /class="header-inner"[^>]*data-glass="floating"[^>]*data-glass-rim/)
+    if (path !== 'index.html') {
+      assert.match(html, /class="docs-sidebar"[^>]*data-glass="structural"/)
+      assert.match(html, /class="mobile-chapters"[^>]*data-glass="floating"[^>]*data-glass-rim/)
+    }
+  }
+})
+
+test('website filters use semantic roles, with no ambient or card light pools', async () => {
+  for (const path of ['src/style.css', 'src/home.css', 'src/manual.css', 'src/llm-wiki.css', 'src/materials.css']) {
+    const source = await read(path)
+    assert.doesNotMatch(source, /radial-gradient|ambient-orb|cta-orb|--orb-opacity/)
+    for (const match of source.matchAll(/(?:-webkit-)?backdrop-filter:\s*([^;\n}]+)/g)) {
+      assert.match(match[1], /^(?:none|var\(--glass-(?:floating|panel|structural|content|control)-filter\))(?:\s*!important)?$/)
+    }
+  }
+})
+
+test('neutral actions preserve accessible interaction and avoid nested filters', async () => {
+  const material = await read('src/materials.css')
+  assert.match(material, /\.button-primary[\s\S]*?var\(--glass-action-fill\)/)
+  assert.match(material, /var\(--glass-action-sheen\)/)
+  assert.match(material, /var\(--glass-action-pressed\)/)
+  assert.match(material, /var\(--glass-action-label\)/)
+  assert.match(material, /focus-visible/)
+  assert.match(material, /\.mock-sidebar[\s\S]*?backdrop-filter:\s*none/)
+  assert.match(material, /@media print/)
+})
+
+test('website navigation uses the shared bounded lens and releases it during hot reload', async () => {
+  const main = await read('src/main.js')
+  assert.match(main, /import \{ attachGlassLens \} from ['"]\.\.\/\.\.\/frontend\/src\/utils\/glassOptics\.ts['"]/)
+  assert.match(main, /querySelectorAll\('\.header-inner'\)/)
+  assert.match(main, /import\.meta\.hot\.dispose\(/)
+  assert.doesNotMatch(main, /cloneNode|html2canvas|captureStream/)
+  assert.match(await read('src/materials.css'), /@media print[\s\S]+?\.glass-optics\s*\{\s*display:\s*none/)
+})
+
+test('the feature tour source preview uses the application panel instead of an opaque mock', async () => {
+  const css = await read('src/materials.css')
+  assert.match(css, /\.demo-evidence\s*\{[^}]*background:\s*var\(--glass-panel-sheen\), var\(--glass-panel-fill\)/)
+  assert.match(css, /\.demo-evidence\s*\{[^}]*backdrop-filter:\s*var\(--glass-panel-filter\)/)
+})

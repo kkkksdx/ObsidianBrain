@@ -1,0 +1,87 @@
+import { createRouter, createWebHistory } from 'vue-router'
+import { getMobileRouteRedirect } from '@/utils/mobileNavigationPolicy'
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes: [
+    {
+      path: '/',
+      name: 'Home',
+      component: () => import('@/views/Home.vue'),
+      meta: { title: '首页' },
+    },
+    {
+      path: '/knowledge',
+      name: 'KnowledgeBases',
+      component: () => import('@/views/knowledge/KnowledgeBases.vue'),
+      meta: { title: '书籍知识库' },
+    },
+    {
+      path: '/knowledge/wiki',
+      name: 'KnowledgeWiki',
+      component: () => import('@/views/knowledge/WikiWorkspace.vue'),
+      meta: { title: 'Wiki 工作台' },
+    },
+    {
+      path: '/knowledge/chat',
+      name: 'KnowledgeChat',
+      component: () => import('@/views/knowledge/KnowledgeChat.vue'),
+      meta: { title: '知识问答' },
+    },
+    {
+      path: '/knowledge/tasks',
+      name: 'KnowledgeTasks',
+      component: () => import('@/views/knowledge/KnowledgeTasks.vue'),
+      meta: { title: '研究任务' },
+    },
+    {
+      path: '/knowledge/settings',
+      name: 'WikiSettings',
+      component: () => import('@/views/knowledge/WikiSettings.vue'),
+      meta: { title: 'Wiki 配置' },
+    },
+    { path: '/memory', redirect: '/knowledge' },
+    { path: '/wiki-dashboard', redirect: '/knowledge' },
+    { path: '/wiki', redirect: '/knowledge/wiki' },
+    { path: '/explore', redirect: '/knowledge/chat' },
+    { path: '/ingest', redirect: '/knowledge/tasks' },
+    {
+      path: '/reader',
+      name: 'Reader',
+      component: () => import('@/views/Reader.vue'),
+      meta: { title: '阅境轩' },
+    },
+    {
+      path: '/code-repo',
+      name: 'CodeRepo',
+      component: () => import('@/views/CodeRepo.vue'),
+      meta: { title: '代码仓' },
+    },
+    {
+      path: '/timeline',
+      name: 'Timeline',
+      component: () => import('@/views/Timeline.vue'),
+      meta: { title: '时光机' },
+    },
+    {
+      path: '/tasks',
+      name: 'Tasks',
+      component: () => import('@/views/Tasks.vue'),
+      meta: { title: '任务中枢' },
+    },
+    // Retired destinations and stale bookmarks must not leave a blank page.
+    { path: '/:pathMatch(.*)*', redirect: '/' },
+  ],
+})
+
+// The comparison renderer and sample corpus never enter the production bundle.
+if (import.meta.env.DEV) router.addRoute({
+  path: '/dev/mermaid',
+  name: 'MermaidLab',
+  component: () => import('@/views/dev/MermaidLab.vue'),
+  meta: { title: '图表效果对比' },
+})
+
+router.beforeEach(to => getMobileRouteRedirect(to.path, window.innerWidth) ?? true)
+
+export default router

@@ -1,0 +1,208 @@
+<template>
+  <TransitionGroup name="collection-flow" tag="div" class="task-tree" role="tree" aria-label="任务拆解" @before-leave="freezeCollectionLeave" @before-enter="resetCollectionEnter">
+    <div
+      v-for="item in flattened"
+      :key="item.node.id"
+      class="tree-row"
+      :class="{
+        selected: item.node.id === selectedId,
+        closed: isClosed(item.node.status),
+        dragging: item.node.id === draggingId,
+      }"
+      :style="{ '--tree-depth': item.depth }"
+      role="treeitem"
+      :aria-level="item.depth + 1"
+      :aria-expanded="item.hasChildren ? expanded.has(item.node.id) : undefined"
+      :draggable="item.node.role === 'subtask'"
+      @click="$emit('select', item.node.id)"
+      @dragstart="startDrag(item.node.id)"
+      @dragend="draggingId = null"
+      @dragover.prevent
+      @drop.prevent="dropOn(item.node.id)"
+    >
+      <button data-icon-only
+        data-direction-button
+        v-if="item.hasChildren"
+        type="button"
+        class="disclosure"
+        :aria-label="expanded.has(item.node.id) ? '收起子任务' : '展开子任务'"
+        :aria-expanded="expanded.has(item.node.id)"
+        @click.stop="toggle(item.node.id)"
+      >
+        <el-icon class="ui-chevron" aria-hidden="true"><ArrowRight /></el-icon>
+      </button>
+      <span v-else class="disclosure-spacer"></span>
+
+      <button
+        type="button"
+        class="status-orb"
+        :aria-label="`${item.node.title}，${statusLabel(item.node.status)}`"
+        @click.stop="$emit('edit', item.node)"
+      >
+        <TaskStatusMark :status="item.node.status" />
+      </button>
+
+      <button type="button" class="tree-copy" :aria-label="`查看子任务：${item.node.title}`" :title="item.node.title" @click.stop="$emit('select', item.node.id)">
+        <span class="tree-title">{{ item.node.title }}</span>
+        <span class="tree-meta">
+          <span>{{ statusLabel(item.node.status) }}</span>
+          <span class="importance" :class="`importance-${item.node.importance}`">
+            {{ importanceLabel(item.node.importance) }}
+          </span>
+          <span class="tree-dates">
+            <span class="dates-full">{{ item.node.start_date }} – {{ item.node.end_date }}</span>
+            <span class="dates-compact">{{ formatTaskDateRangeCompact(item.node.start_date, item.node.end_date) }}</span>
+          </span>
+        </span>
+      </button>
+
+    </div>
+
+    <div v-if="flattened.length === 0" key="empty" class="tree-empty">还没有子任务</div>
+  </TransitionGroup>
+</template>
+
+<script setup lang="ts">
+import { computed, ref, watch } from 'vue'
+import { ArrowRight } from '@element-plus/icons-vue'
+import TaskStatusMark from './TaskStatusMark.vue'
+import type { TaskImportance, TaskNode, TaskStatus } from '@/api/tasks'
+import { flattenVisibleSubtasks } from '@/utils/taskHierarchy'
+import { formatTaskDateRangeCompact } from '@/utils/taskDates'
+import { freezeCollectionLeave, resetCollectionEnter } from '@/utils/collectionMotion'
+
+const props = defineProps<{
+  tasks: TaskNode[]
+  selectedId?: string | null
+}>()
+
+const emit = defineEmits<{
+  select: [id: string]
+  edit: [task: TaskNode]
+  reorder: [taskId: string, parentId: string]
+}>()
+
+const expanded = ref(new Set<string>())
+const draggingId = ref<string | null>(null)
+
+watch(
+  () => props.tasks,
+  (tasks) => {
+    const next = new Set(expanded.value)
+    for (const task of tasks) {
+      if (task.role === 'root' || tasks.some((candidate) => candidate.parent_id === task.id)) {
+        next.add(task.id)
+      }
+    }
+    expanded.value = next
+  },
+  { immediate: true },
+)
+
+const flattened = computed(() => flattenVisibleSubtasks(props.tasks, expanded.value))
+
+function toggle(id: string) {
+  const next = new Set(expanded.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  expanded.value = next
+}
+
+function startDrag(id: string) {
+  draggingId.value = id
+}
+
+function dropOn(parentId: string) {
+  const taskId = draggingId.value
+  draggingId.value = null
+  if (!taskId || taskId === parentId) return
+  emit('reorder', taskId, parentId)
+}
+
+function isClosed(status: TaskStatus) {
+  return status === 'completed' || status === 'cancelled'
+}
+
+function statusLabel(status: TaskStatus) {
+  return ({
+    open: '待处理',
+    planned: '已计划',
+    in_progress: '进行中',
+    blocked: '受阻',
+    completed: '已完成',
+    cancelled: '已取消',
+  } satisfies Record<TaskStatus, string>)[status]
+}
+
+function importanceLabel(importance: TaskImportance) {
+  return ({ low: '低', normal: '普通', high: '重要', urgent: '紧急' } satisfies Record<TaskImportance, string>)[importance]
+}
+</script>
+
+<style scoped>
+.task-tree { position: relative; display: grid; gap: 6px; }
+.tree-row {
+  --indent: calc(var(--tree-depth) * 22px);
+  min-height: 54px;
+  display: grid;
+  grid-template-columns: 26px 44px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  padding: 7px 8px 7px calc(8px + var(--indent));
+  border: 1px solid transparent;
+  border-radius: 14px;
+  transition: background var(--motion-fast) var(--ease-emphasized),
+              border-color var(--motion-fast) var(--ease-emphasized),
+              transform var(--motion-instant) var(--ease-emphasized),
+              opacity var(--motion-fast) var(--ease-emphasized);
+}
+.tree-row:hover, .tree-row.selected { background: var(--bg-glass); border-color: var(--border-subtle); }
+.tree-row:active { transform: scale(.995); }
+.tree-row.dragging { opacity: .45; }
+.tree-row.closed .tree-title { color: var(--text-faint); text-decoration: line-through; }
+.disclosure, .status-orb {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.disclosure { width: 26px; height: 36px; border-radius: 10px; }
+.disclosure:hover { background: var(--bg-glass-strong); }
+.disclosure-spacer { width: 26px; }
+.status-orb {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  transition: transform var(--motion-fast) var(--ease-spring), background var(--motion-fast) ease;
+}
+.status-orb:hover { background: var(--bg-glass); transform: scale(1.04); }
+.status-orb:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tree-copy { min-width: 0; min-height: 44px; padding: 0; border: 0; background: transparent; text-align: left; font: inherit; cursor: pointer; border-radius: 6px; }
+.tree-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.tree-title { display: block; color: var(--text-primary); font-size: 15px; font-weight: 580; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tree-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 3px; color: var(--text-faint); font-size: 12px; }
+.importance { flex: none; font-weight: 600; }
+/* Both range renderings exist; the media queries below pick one so the meta
+   line stays single-row on phones without shipping a resize listener. */
+.tree-dates { min-width: 0; }
+.dates-compact { display: none; }
+.importance-high { color: var(--warning); }
+.importance-urgent { color: var(--danger); }
+.tree-empty { padding: 28px; text-align: center; color: var(--text-faint); font-size: 14px; }
+
+@media (max-width: 768px) {
+  .tree-row { --indent: min(calc(var(--tree-depth) * 15px), 45px); grid-template-columns: 44px minmax(0, 1fr); padding-left: calc(3px + var(--indent)); }
+  .disclosure, .disclosure-spacer { width: 44px; min-height: 44px; }
+  .status-orb { display: none; }
+  .tree-title { white-space: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .dates-full { display: none; }
+  .dates-compact { display: inline; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tree-row, .status-orb { transition-duration: 1ms !important; }
+}
+</style>

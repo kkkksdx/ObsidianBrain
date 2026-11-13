@@ -1,0 +1,197 @@
+<template>
+  <Teleport to="body">
+      <div v-if="present" class="motion-drawer" :class="{ 'is-dragging': dragging, 'is-settling': settling }">
+        <div class="motion-drawer__scrim" :style="scrimStyle" aria-hidden="true" @click="close" />
+        <aside
+          ref="panelRef"
+          class="motion-drawer__panel"
+          :class="`is-${direction}`"
+          :style="{ transform: panelTransform }"
+          role="dialog"
+          aria-modal="true"
+          :inert="!modelValue ? true : undefined"
+          :aria-label="ariaLabel"
+          tabindex="-1"
+          @pointerdown="onPointerDown"
+          @pointermove="onPointerMove"
+          @pointerup="onPointerUp"
+          @pointercancel="onPointerCancel"
+        >
+          <div class="motion-drawer__grabber" aria-hidden="true" />
+          <MotionContent :live="modelValue"><slot /></MotionContent>
+        </aside>
+      </div>
+  </Teleport>
+</template>
+
+<script setup lang="ts">
+import { computed, onBeforeUnmount, ref } from 'vue'
+import { useModalEnvironment } from '@/composables/useModalEnvironment'
+import { useSurfaceMotion } from '@/composables/useSurfaceMotion'
+import MotionContent from './MotionContent'
+import { projectMotion } from '@/utils/motionSpring'
+import { panelDragPosition } from '@/utils/panelGesture'
+
+const props = withDefaults(defineProps<{
+  modelValue: boolean
+  direction?: 'left' | 'right'
+  ariaLabel?: string
+}>(), {
+  direction: 'left',
+  ariaLabel: '侧边面板',
+})
+
+const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
+const panelRef = ref<HTMLElement | null>(null)
+const dragging = ref(false)
+const directionSign = computed(() => props.direction === 'left' ? -1 : 1)
+const { present, moving: settling, offset: dragX, opacity, panelTransform, grab, follow, handoff, settle } = useSurfaceMotion(() => props.modelValue, panelRef, 'x', () => directionSign.value)
+let pointerId: number | null = null
+let startX = 0
+let grabX = 0
+let startY = 0
+let axis: 'pending' | 'horizontal' | 'vertical' = 'pending'
+let samples: Array<{ x: number; time: number }> = []
+const scrimStyle = computed(() => ({ opacity: opacity.value }))
+
+function close() {
+  emit('update:modelValue', false)
+}
+
+function onPointerDown(event: PointerEvent) {
+  if (event.pointerType === 'mouse' && event.button !== 0) return
+  if ((event.target as Element).closest('button, a, input, textarea, select, [contenteditable="true"]')) return
+  if (!props.modelValue) return
+  // Don't pause the entry until horizontal intent is confirmed. A vertical
+  // scroll/tap must not strand a partially entered drawer.
+  pointerId = event.pointerId
+  startX = event.clientX
+  startY = event.clientY
+  axis = 'pending'
+  samples = [{ x: event.clientX, time: performance.now() }]
+}
+
+function onPointerMove(event: PointerEvent) {
+  if (event.pointerId !== pointerId) return
+  const dx = event.clientX - startX
+  const dy = event.clientY - startY
+  if (axis === 'pending') {
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 10) return
+    axis = Math.abs(dx) > Math.abs(dy) ? 'horizontal' : 'vertical'
+    if (axis === 'vertical') {
+      onPointerCancel(event)
+      return
+    }
+    dragging.value = true
+    grab()
+    grabX = dragX.value
+    startX = event.clientX
+    panelRef.value?.setPointerCapture(event.pointerId)
+  }
+
+  event.preventDefault()
+  const width = panelRef.value?.offsetWidth || 320
+  follow(panelDragPosition(grabX, event.clientX, startX, width, directionSign.value))
+  const now = performance.now()
+  samples.push({ x: event.clientX, time: now })
+  samples = samples.filter((sample) => now - sample.time <= 100)
+}
+
+function finishGesture() {
+  const first = samples[0]
+  const last = samples[samples.length - 1]
+  const elapsed = first && last ? Math.max(1, last.time - first.time) : 1
+  const velocity = first && last ? ((last.x - first.x) / elapsed) * 1000 : 0
+  const projected = projectMotion(dragX.value, velocity)
+  const width = panelRef.value?.offsetWidth || 320
+  const shouldClose = projected * directionSign.value > width * 0.35
+  if (pointerId !== null && panelRef.value?.hasPointerCapture(pointerId)) {
+    panelRef.value.releasePointerCapture(pointerId)
+  }
+  pointerId = null
+  dragging.value = false
+  if (shouldClose) { handoff(velocity); close() }
+  else settle(velocity)
+}
+
+function resetGesture() {
+  grab()
+  if (pointerId !== null && panelRef.value?.hasPointerCapture(pointerId)) {
+    panelRef.value.releasePointerCapture(pointerId)
+  }
+  pointerId = null
+  dragging.value = false
+}
+
+function onPointerUp(event: PointerEvent) {
+  if (event.pointerId !== pointerId) return
+  if (axis === 'horizontal') finishGesture()
+  else onPointerCancel(event)
+}
+
+function onPointerCancel(event: PointerEvent) {
+  if (event.pointerId !== pointerId) return
+  if (panelRef.value?.hasPointerCapture(event.pointerId)) panelRef.value.releasePointerCapture(event.pointerId)
+  pointerId = null
+  dragging.value = false
+  settle(0)
+}
+useModalEnvironment(() => present.value, panelRef, close)
+onBeforeUnmount(() => {
+  resetGesture()
+})
+</script>
+
+<style scoped>
+.motion-drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 2200;
+}
+
+.motion-drawer__scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.motion-drawer__panel {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: min(78vw, 360px);
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+  background: var(--bg-glass-strong);
+  backdrop-filter: var(--glass-panel-filter);
+  -webkit-backdrop-filter: var(--glass-panel-filter);
+  border: 1px solid var(--border-glass);
+  box-shadow: var(--shadow-lg), var(--inset-highlight);
+  touch-action: pan-y;
+  outline: none;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.motion-drawer__panel.is-left { left: 0; border-radius: 0 22px 22px 0; }
+.motion-drawer__panel.is-right { right: 0; border-radius: 22px 0 0 22px; }
+
+.motion-drawer__grabber {
+  position: absolute;
+  top: 50%;
+  width: 4px;
+  height: 42px;
+  border-radius: 999px;
+  background: var(--text-faint);
+  opacity: 0.28;
+  transform: translateY(-50%);
+}
+.is-left .motion-drawer__grabber { right: 5px; }
+.is-right .motion-drawer__grabber { left: 5px; }
+
+.is-dragging .motion-drawer__panel, .is-settling .motion-drawer__panel { will-change: transform; }
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-drawer__panel { transform: none !important; }
+}
+</style>
