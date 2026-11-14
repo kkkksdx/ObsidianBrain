@@ -18,11 +18,11 @@ ObsidianBrain 是本地优先的 **Rust 知识引擎 + 个人工作台**：后�
 
 ```bash
 # ── 后端（在 backend/ 下）──
-cargo test                              # Windows 基线：569 passed, 3 failed, 6 ignored（失败项见下方「已知平台差异」）
+cargo test                              # Windows 基线：568 passed, 3 failed, 6 ignored（失败项见下方「已知平台差异」）
 cargo test semantic_compile             # 按名称过滤单个测试
 cargo fmt -- --check                    # clean
-cargo clippy -- -D warnings             # Rust 1.94：5 处告警（生产代码）
-cargo clippy --all-targets -- -D warnings   # Rust 1.94：17 处告警（含测试代码 lint）
+cargo clippy -- -D warnings             # clean
+cargo clippy --all-targets -- -D warnings   # clean
 cargo run -- start --foreground         # 前台运行；无子命令等价于前台启动
 
 # ── 前端（在 frontend/ 下）──
@@ -58,7 +58,7 @@ OBRAIN_DATA_DIR=/tmp/ob-preview         # 一次性隔离 db/日志/缩略图
 | `infra::timeline_images::tests::test_migration_is_copy_only_retryable_and_rejects_escape` | 测试文件名含 `?`（`中文 #问号?.png`），Windows 下是非法字符 → OS error 123 |
 | `infra::file_watcher::tests::test_file_watcher_excludes_patterns` | `notify` 在 Windows 上仍会为被排除路径投递事件 |
 
-`cargo clippy -- -D warnings` 的 5 处生产代码告警：`book_wiki.rs` 未使用参数 `path`、`daemon.rs` 三个未使用函数、`std::io::Error::other` 建议；`--all-targets` 另有 12 处测试代码 lint（多为 Rust 1.94 新增的 lint）。
+`clippy` 目前全绿（生产代码与 `--all-targets` 都是 clean）。三个提示词快照用例带 `#[allow(clippy::await_holding_lock)]`：它们在 `await` 前已显式 `drop` 了 `MutexGuard`，而该 lint 不识别显式 `drop()`（已知误报）。`is_brain_command` / `stop_targets` 等 unix 专用的 stop 回退辅助函数在 Windows 上整体 `#[cfg(unix)]`，因此 Windows 的 `cargo test` 比 unix 少一个用例。
 
 ---
 
