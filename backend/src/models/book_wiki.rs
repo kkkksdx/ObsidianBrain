@@ -437,8 +437,10 @@ mod research_brief_tests {
 
     #[test]
     fn test_research_brief_rejects_unknown_presentation_theme() {
-        let mut brief = ResearchBrief::default();
-        brief.presentation_theme = "neon".into();
+        let brief = ResearchBrief {
+            presentation_theme: "neon".into(),
+            ..ResearchBrief::default()
+        };
         assert!(brief.validate().is_err());
     }
 

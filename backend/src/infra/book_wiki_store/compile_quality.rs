@@ -218,7 +218,7 @@ mod tests {
                 "首次",
                 "",
                 "revision-initial",
-                &[candidate.clone()],
+                std::slice::from_ref(&candidate),
             )
             .unwrap();
         store.resolve_change_set(&initial.id, true, "").unwrap();
@@ -281,7 +281,7 @@ mod tests {
                 "首次",
                 "",
                 "protect-initial",
-                &[candidate.clone()],
+                std::slice::from_ref(&candidate),
             )
             .unwrap();
         store.resolve_change_set(&initial.id, true, "").unwrap();

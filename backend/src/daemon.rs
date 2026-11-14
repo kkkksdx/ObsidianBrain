@@ -36,11 +36,14 @@ pub fn is_running() -> bool {
 
 /// 命令名是否属于 ObsidianBrain：安装名为 obsidian-brain，
 /// 测试二进制名会把连字符换成下划线，统一归一化后再匹配。
+/// 仅 unix 的 stop 回退使用；Windows 的 stop 走 taskkill，不需要按命令行匹配。
+#[cfg(unix)]
 fn is_brain_command(command: &str) -> bool {
     command.replace('_', "-").contains("obsidian-brain")
 }
 
 /// 端口上属于 ObsidianBrain 的监听进程 PID（用于 PID 文件丢失时的 stop 回退）。
+#[cfg(unix)]
 fn brain_listener_pids(port: u16) -> Vec<i32> {
     port_listeners(port)
         .into_iter()
@@ -51,6 +54,7 @@ fn brain_listener_pids(port: u16) -> Vec<i32> {
 
 /// stop 的目标进程：PID 文件指向存活进程时优先信任它；
 /// 文件缺失或指向死进程时回退到端口发现（只匹配 ObsidianBrain 自己的进程）。
+#[cfg(unix)]
 fn stop_targets(pid: Option<i32>, port: u16) -> Vec<i32> {
     match pid.filter(|pid| is_process_running(*pid)) {
         Some(pid) => vec![pid],
@@ -270,7 +274,7 @@ mod platform {
             .status()?;
 
         if !status.success() {
-            return Err(io::Error::new(io::ErrorKind::Other, "taskkill failed"));
+            return Err(io::Error::other("taskkill failed"));
         }
 
         remove_pid();
@@ -284,8 +288,11 @@ pub use platform::*;
 
 #[cfg(test)]
 mod tests {
+    // Windows 上所有用例都带 #[cfg(unix)]，导入会变成未使用。
+    #[cfg(unix)]
     use super::*;
 
+    #[cfg(unix)]
     #[test]
     fn test_is_brain_command_accepts_hyphen_and_underscore_binary_names() {
         assert!(is_brain_command("obsidian-brain"));

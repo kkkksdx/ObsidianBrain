@@ -120,22 +120,6 @@ impl DeepSeekHarnessRuntime {
         }
     }
 
-    #[cfg(test)]
-    fn with_idle_timeout(idle_timeout: Duration) -> Self {
-        Self {
-            idle_timeout,
-            ..Self::default()
-        }
-    }
-
-    #[cfg(test)]
-    fn with_startup_timeout(startup_timeout: Duration) -> Self {
-        Self {
-            startup_timeout,
-            ..Self::default()
-        }
-    }
-
     #[allow(unused_assignments)]
     async fn run_prompt(
         &self,

@@ -4537,6 +4537,9 @@ fn restrict_secret_file_permissions(path: &Path) -> Result<(), BrainError> {
         permissions.set_mode(0o600);
         std::fs::set_permissions(path, permissions)?;
     }
+    // Windows 用 ACL 而非 mode 位，这里保持文件原状。
+    #[cfg(not(unix))]
+    let _ = path;
     Ok(())
 }
 
@@ -6346,16 +6349,19 @@ mod tests {
         }
     }
 
-    fn preflight_test_service(
-        root: &std::path::Path,
-        responses: Vec<Result<String, BrainError>>,
-        provider_output_limit: u32,
-    ) -> (
+    /// 预检测试装置：服务、数据库、知识库 ID，以及记录的（提示词，输出上限）。
+    type PreflightFixture = (
         BookWikiService,
         Arc<SqliteStore>,
         String,
         Arc<Mutex<Vec<(String, u32)>>>,
-    ) {
+    );
+
+    fn preflight_test_service(
+        root: &std::path::Path,
+        responses: Vec<Result<String, BrainError>>,
+        provider_output_limit: u32,
+    ) -> PreflightFixture {
         let book_path = root.join("preflight-book");
         std::fs::create_dir(&book_path).unwrap();
         std::fs::write(book_path.join("chapter.md"), "# 章节\n测试来源").unwrap();
@@ -6482,6 +6488,8 @@ mod tests {
     }
 
     #[tokio::test]
+    // 提示词快照在使用后已显式 drop；clippy::await_holding_lock 不识别显式 drop()。
+    #[allow(clippy::await_holding_lock)]
     async fn test_research_preflight_repairs_invalid_json_once_without_repeating_limit_errors() {
         let dir = tempfile::tempdir().unwrap();
         let (service, _, base_id, prompts) = preflight_test_service(
@@ -6500,6 +6508,7 @@ mod tests {
         assert_eq!(prompts.len(), 2);
         assert!(prompts[1].0.contains("上一轮输出未通过 JSON 合同校验"));
         assert!(prompts[1].0.contains("完整 JSON 对象"));
+        drop(prompts);
 
         let dir = tempfile::tempdir().unwrap();
         let error = BrainError::LlmApiError {
@@ -7870,6 +7879,8 @@ mod tests {
     }
 
     #[tokio::test]
+    // 提示词快照在使用后已显式 drop；clippy::await_holding_lock 不识别显式 drop()。
+    #[allow(clippy::await_holding_lock)]
     async fn test_incremental_compile_recomposes_full_current_topic_and_repairs_missing_coverage_once(
     ) {
         let dir = tempfile::tempdir().unwrap();
@@ -8244,6 +8255,8 @@ mod tests {
     }
 
     #[tokio::test]
+    // 提示词快照在使用后已显式 drop；clippy::await_holding_lock 不识别显式 drop()。
+    #[allow(clippy::await_holding_lock)]
     async fn test_ask_follow_up_resolves_context_and_selects_compiled_entry() {
         let dir = tempfile::tempdir().expect("tempdir");
         let book_path = dir.path().join("book-follow-up");

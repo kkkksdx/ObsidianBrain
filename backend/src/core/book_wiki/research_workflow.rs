@@ -941,8 +941,10 @@ mod tests {
     #[test]
     fn test_confirmed_research_brief_rejects_question_and_duplicate_reader_headings() {
         let mut plan: ResearchPlan = parse_phase(&phase_contract("plan").to_string()).unwrap();
-        let mut brief = ResearchBrief::default();
-        brief.confirmed = true;
+        let mut brief = ResearchBrief {
+            confirmed: true,
+            ..ResearchBrief::default()
+        };
         plan.report_title = Some("这本书的机制是什么？".into());
         assert!(validate_reader_facing_plan_titles(&plan, &brief).is_err());
         plan.report_title = Some("书中机制与适用边界".into());

@@ -241,7 +241,9 @@ mod tests {
         let spans = store.list_current_source_spans(&base.id).unwrap();
         store.begin_semantic_compile(&base.id, 1).unwrap();
         let id = store.start_compile_report(&base.id, "fp", &spans).unwrap();
-        store.plan_compile_report(&id, &[spans.clone()]).unwrap();
+        store
+            .plan_compile_report(&id, std::slice::from_ref(&spans))
+            .unwrap();
         let run = store
             .start_agent_run(&base.id, "deepseek_harness", "knowledge_ingest", &json!({}))
             .unwrap();
@@ -317,14 +319,16 @@ mod tests {
         let spans = store.list_current_source_spans(&base.id).unwrap();
         store.begin_semantic_compile(&base.id, 1).unwrap();
         let id = store.start_compile_report(&base.id, "fp", &spans).unwrap();
-        store.plan_compile_report(&id, &[spans.clone()]).unwrap();
+        store
+            .plan_compile_report(&id, std::slice::from_ref(&spans))
+            .unwrap();
         let run = store
             .start_agent_run(&base.id, "deepseek_harness", "knowledge_ingest", &json!({}))
             .unwrap();
         let candidate = semantic_candidate("span-review", "Review topic");
         store.begin_compile_report_batch(&id, 1).unwrap();
         store
-            .complete_compile_report_batch(&id, 1, &run.id, &[candidate.clone()], None)
+            .complete_compile_report_batch(&id, 1, &run.id, std::slice::from_ref(&candidate), None)
             .unwrap();
         let changes = store
             .create_semantic_change_set(

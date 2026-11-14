@@ -4,8 +4,11 @@ use crate::models::book_wiki::{BookKind, ReaderBook};
 use async_trait::async_trait;
 use std::sync::Mutex;
 
+/// 每次 prompt 调用记录的（提示词，请求的输出上限）。
+type RequestLog = Arc<Mutex<Vec<(String, Option<u32>)>>>;
+
 struct AdaptiveFixtureRuntime {
-    requests: Arc<Mutex<Vec<(String, Option<u32>)>>>,
+    requests: RequestLog,
 }
 
 #[async_trait]
