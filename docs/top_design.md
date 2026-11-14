@@ -635,7 +635,7 @@ add_code_repo(path: "/Users/me/projects/my-app", name: "my-app")
   "is_dirty": false,
   "languages": {"Rust": 0.72, "TypeScript": 0.18, "Python": 0.10},
   "recent_commits": [
-    {"hash": "a1b2c3d", "author": "TiercelChow", "message": "feat: add auth module", "time": "2026-05-28T14:30:00Z"}
+    {"hash": "a1b2c3d", "author": "kkkksdx", "message": "feat: add auth module", "time": "2026-05-28T14:30:00Z"}
   ],
   "last_activity": "2026-05-28T14:30:00Z",
   "linked_notes": ["projects/my-app-notes.md"],

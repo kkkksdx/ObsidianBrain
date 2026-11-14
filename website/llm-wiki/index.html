@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#f0f0f3" />
     <meta name="description" content="ObsidianBrain 书籍知识工作流：将 Markdown 文集编译为可浏览的主题 Wiki，支持带来源的连续问答、按用途组织的研究报告和 PPTX 下载。介绍建库、审核、Skill、模型配置与失败恢复；数据保存在本机，不依赖 Obsidian。" />
     <meta name="keywords" content="Book Wiki, LLM, 自适应检索, 证据账本, ACP, DeepSeek Harness, SQLite FTS5, 变更集审核, 可恢复研究, PPTX" />
-    <link rel="canonical" href="https://tiercelchow.github.io/ObsidianBrain/llm-wiki/" />
+    <link rel="canonical" href="https://kkkksdx.github.io/ObsidianBrain/llm-wiki/" />
     <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
     <title>LLM Wiki · 书籍知识工作流 · ObsidianBrain</title>
     <script>document.documentElement.classList.add('js')</script>
@@ -30,7 +30,7 @@
         </nav>
         <div class="header-actions">
           <button class="theme-toggle" type="button" data-theme-toggle><svg aria-hidden="true"><use href="#icon-theme" /></svg><span data-theme-label>浅色</span></button>
-          <a class="github-button" href="https://github.com/TiercelChow/ObsidianBrain" target="_blank" rel="noreferrer"><svg aria-hidden="true"><use href="#icon-github" /></svg><span>GitHub</span></a>
+          <a class="github-button" href="https://github.com/kkkksdx/ObsidianBrain" target="_blank" rel="noreferrer"><svg aria-hidden="true"><use href="#icon-github" /></svg><span>GitHub</span></a>
           <button class="menu-toggle" type="button" aria-label="打开导航" aria-controls="site-navigation" aria-expanded="false" data-menu-toggle><svg aria-hidden="true"><use href="#icon-menu" /></svg></button>
         </div>
       </div>
@@ -805,7 +805,7 @@ error / cancelled        → 保留已收到的部分内容，明确原因</code
               </tbody>
             </table>
             <h3>真实隔离验收 — 已观察到什么</h3>
-            <p><a href="https://github.com/TiercelChow/ObsidianBrain/blob/main/docs/development/2026-10-03-wiki-acceptance-closeout-results.md" target="_blank" rel="noreferrer">2026-10-03 真实隔离验收</a>使用独立实例、八篇虚构资料及一个真实供应商模型，核对编译、六轮问答、研究、恢复与两份 PPT。它补充了 Mock 与自动回归，但不是所有供应商、所有书籍的质量保证，也不是严格受控的质量前后对比。</p>
+            <p><a href="https://github.com/kkkksdx/ObsidianBrain/blob/main/docs/development/2026-10-03-wiki-acceptance-closeout-results.md" target="_blank" rel="noreferrer">2026-10-03 真实隔离验收</a>使用独立实例、八篇虚构资料及一个真实供应商模型，核对编译、六轮问答、研究、恢复与两份 PPT。它补充了 Mock 与自动回归，但不是所有供应商、所有书籍的质量保证，也不是严格受控的质量前后对比。</p>
             <table class="info-table">
               <thead><tr><th>已验证的流程</th><th>观察结果</th><th>仍需改进或验证</th></tr></thead>
               <tbody>
@@ -825,13 +825,13 @@ error / cancelled        → 保留已收到的部分内容，明确原因</code
             </ul>
             <div class="callout subtle"><span class="callout-icon">ⓘ</span><span><strong>使用边界：</strong>安全与容量上限依然存在，应在配置中填写模型真实能力。Book Wiki 不支持 PDF / OCR；PPTX 作为下载交付物。检查器能解释公开流程与材料范围，不展示模型隐藏思维链。</span></div>
             <h3>继续阅读</h3>
-            <p>本篇按当前源码与已执行的验收更新。具体操作见<a href="../manual/#wiki">书籍 Wiki 使用手册</a>；架构细节可对照<a href="https://github.com/TiercelChow/ObsidianBrain/blob/main/docs/development/2026-09-26-wiki-adaptive-quality-plan.md" target="_blank" rel="noreferrer">自适应工作流实施计划</a>和<a href="https://github.com/TiercelChow/ObsidianBrain/blob/main/docs/development/08-llm-wiki.md" target="_blank" rel="noreferrer">开发设计</a>。核心服务位于 <code>backend/src/core/book_wiki.rs</code>，研究编排位于 <code>backend/src/core/book_wiki/research_workflow.rs</code>，强制合同位于 <code>backend/prompts/wiki/</code>。</p>
+            <p>本篇按当前源码与已执行的验收更新。具体操作见<a href="../manual/#wiki">书籍 Wiki 使用手册</a>；架构细节可对照<a href="https://github.com/kkkksdx/ObsidianBrain/blob/main/docs/development/2026-09-26-wiki-adaptive-quality-plan.md" target="_blank" rel="noreferrer">自适应工作流实施计划</a>和<a href="https://github.com/kkkksdx/ObsidianBrain/blob/main/docs/development/08-llm-wiki.md" target="_blank" rel="noreferrer">开发设计</a>。核心服务位于 <code>backend/src/core/book_wiki.rs</code>，研究编排位于 <code>backend/src/core/book_wiki/research_workflow.rs</code>，强制合同位于 <code>backend/prompts/wiki/</code>。</p>
           </section>
           <div class="docs-end"><span>了解架构，开始使用</span><p>从资料整理到问答、研究与演示交付：本地应用管理数据与证据，Harness 执行多轮取证，正式知识经过审核发布。</p><a class="button button-secondary" href="../manual/#wiki">阅读书籍 Wiki 使用手册 <svg aria-hidden="true"><use href="#icon-arrow" /></svg></a></div>
         </div>
       </div>
     </main>
-    <footer class="site-footer"><div class="section-shell docs-footer"><a class="brand" href="../"><img class="brand-mark small" src="../favicon.svg" alt="" width="24" height="24" />ObsidianBrain</a><span>你的知识，你的工作空间。</span><a href="https://github.com/TiercelChow/ObsidianBrain" target="_blank" rel="noreferrer">GitHub ↗</a></div></footer>
+    <footer class="site-footer"><div class="section-shell docs-footer"><a class="brand" href="../"><img class="brand-mark small" src="../favicon.svg" alt="" width="24" height="24" />ObsidianBrain</a><span>你的知识，你的工作空间。</span><a href="https://github.com/kkkksdx/ObsidianBrain" target="_blank" rel="noreferrer">GitHub ↗</a></div></footer>
     <script type="module" src="../src/main.js"></script>
     <script type="module" src="../src/manual.js"></script>
     <script type="module" src="../src/llm-wiki.js"></script>

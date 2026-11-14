@@ -21,7 +21,7 @@ ObsidianBrain 当前的 `frontend/` 是依赖本地 Rust 服务与 `/v1` API 的
 
 ## 2. 目标
 
-- 发布到 `https://tiercelchow.github.io/ObsidianBrain/`。
+- 发布到 `https://kkkksdx.github.io/ObsidianBrain/`。
 - 让首次接触项目的人在一个页面内完成“认识产品—判断适合自己—安装—配置—开始使用”。
 - 官网视觉与业务应用保持一致，复用现有主题令牌、圆角、玻璃材质和动效语言。
 - 桌面端与手机端都具备独立编排，不依赖本地后端。

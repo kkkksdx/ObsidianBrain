@@ -64,7 +64,7 @@ Windows ARM64 当前未经验证。macOS 会按当前终端架构生成二进制
 macOS 需要 Git、Node.js 18+、Rust 1.75+ 和 Xcode Command Line Tools：
 
 ```bash
-git clone https://github.com/TiercelChow/ObsidianBrain.git
+git clone https://github.com/kkkksdx/ObsidianBrain.git
 cd ObsidianBrain
 make build          # 构建前端 + 后端（release 模式）
 make install        # 安装到 ~/.local/bin/
@@ -75,7 +75,7 @@ make install        # 安装到 ~/.local/bin/
 Windows x86_64 需要另外安装 Visual Studio Build Tools 的“使用 C++ 的桌面开发”工作负载，然后在 PowerShell 中执行：
 
 ```powershell
-git clone https://github.com/TiercelChow/ObsidianBrain.git
+git clone https://github.com/kkkksdx/ObsidianBrain.git
 Set-Location ObsidianBrain\frontend
 npm ci
 npx vue-tsc -b

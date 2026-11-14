@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#f0f0f3" />
     <meta name="description" content="ObsidianBrain 安装指南与使用手册：阅境轩、时光机、任务中枢和书籍 Wiki 的当前功能、操作步骤与数据说明。" />
-    <link rel="canonical" href="https://tiercelchow.github.io/ObsidianBrain/manual/" />
+    <link rel="canonical" href="https://kkkksdx.github.io/ObsidianBrain/manual/" />
     <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
     <title>使用手册 · ObsidianBrain</title>
     <script>document.documentElement.classList.add('js')</script>
@@ -52,7 +52,7 @@
             <svg aria-hidden="true"><use href="#icon-theme" /></svg>
             <span data-theme-label>浅色</span>
           </button>
-          <a class="github-button" href="https://github.com/TiercelChow/ObsidianBrain" target="_blank" rel="noreferrer">
+          <a class="github-button" href="https://github.com/kkkksdx/ObsidianBrain" target="_blank" rel="noreferrer">
             <svg aria-hidden="true"><use href="#icon-github" /></svg>
             <span>GitHub</span>
           </a>
@@ -120,7 +120,7 @@
         <section id="install" class="manual-section">
           <span class="chapter-kicker">00 / INSTALL</span>
           <h2>安装与启动</h2>
-          <p>下面介绍在目标电脑上从源码构建的安装方式；若使用发布包，请以对应 <a href="https://github.com/tiercelchow/ObsidianBrain/releases" target="_blank" rel="noopener noreferrer">GitHub Release</a> 的安装说明为准。前端会嵌入最终的单个可执行文件，构建完成后基础功能不再需要 Node.js 或 Rust；若启用默认的 DeepSeek Harness 书籍智能功能，则需保留可用的 npm / npx。</p>
+          <p>下面介绍在目标电脑上从源码构建的安装方式；若使用发布包，请以对应 <a href="https://github.com/kkkksdx/ObsidianBrain/releases" target="_blank" rel="noopener noreferrer">GitHub Release</a> 的安装说明为准。前端会嵌入最终的单个可执行文件，构建完成后基础功能不再需要 Node.js 或 Rust；若启用默认的 DeepSeek Harness 书籍智能功能，则需保留可用的 npm / npx。</p>
 
           <table class="info-table platform-table">
             <thead><tr><th>系统</th><th>处理器</th><th>当前方式</th><th>最终文件</th></tr></thead>
@@ -142,7 +142,7 @@
             <li><span>1</span><div><strong>安装构建环境</strong><p>运行 <code>xcode-select --install</code> 安装 Apple 命令行工具，再从 <a href="https://nodejs.org/" target="_blank" rel="noreferrer">Node.js 官网</a>和 <a href="https://rust-lang.org/tools/install/" target="_blank" rel="noreferrer">Rust 官网</a>安装 Node.js 与 Rust。</p></div></li>
             <li><span>2</span><div><strong>下载并构建</strong><p>在终端依次执行下面的命令，先用 <code>npm ci</code> 安装锁定的前端依赖。<code>make install</code> 会构建前后端，再安装到当前用户的 <code>~/.local/bin/</code>，不需要 sudo；只构建而不安装可以运行 <code>make build</code>。</p></div></li>
           </ol>
-          <pre class="command-block"><code>git clone https://github.com/TiercelChow/ObsidianBrain.git
+          <pre class="command-block"><code>git clone https://github.com/kkkksdx/ObsidianBrain.git
 cd ObsidianBrain/frontend
 npm ci
 cd ..
@@ -158,7 +158,7 @@ make install</code></pre>
             <li><span>1</span><div><strong>准备工具链</strong><p>安装 <a href="https://nodejs.org/" target="_blank" rel="noreferrer">Node.js</a>、<a href="https://rust-lang.org/tools/install/" target="_blank" rel="noreferrer">Rustup</a> 和 <a href="https://visualstudio.microsoft.com/visual-cpp-build-tools/" target="_blank" rel="noreferrer">Visual Studio Build Tools</a>。Rustup 使用默认的 <code>x86_64-pc-windows-msvc</code> 工具链。</p></div></li>
             <li><span>2</span><div><strong>构建嵌入式前端</strong><p>先把 Vue 前端生成到后端要求的 <code>frontend/dist_new/</code>，再编译 release 可执行文件。</p></div></li>
           </ol>
-          <pre class="command-block"><code>git clone https://github.com/TiercelChow/ObsidianBrain.git
+          <pre class="command-block"><code>git clone https://github.com/kkkksdx/ObsidianBrain.git
 Set-Location ObsidianBrain
 Set-Location frontend
 npm ci
@@ -480,7 +480,7 @@ cargo build --release</code></pre>
         </div>
       </div>
     </main>
-    <footer class="site-footer"><div class="section-shell docs-footer"><a class="brand" href="../"><img class="brand-mark small" src="../favicon.svg" alt="" width="24" height="24" />ObsidianBrain</a><span>你的知识，你的工作空间。</span><a href="https://github.com/TiercelChow/ObsidianBrain" target="_blank" rel="noreferrer">GitHub ↗</a></div></footer>
+    <footer class="site-footer"><div class="section-shell docs-footer"><a class="brand" href="../"><img class="brand-mark small" src="../favicon.svg" alt="" width="24" height="24" />ObsidianBrain</a><span>你的知识，你的工作空间。</span><a href="https://github.com/kkkksdx/ObsidianBrain" target="_blank" rel="noreferrer">GitHub ↗</a></div></footer>
     <script type="module" src="../src/main.js"></script>
     <script type="module" src="../src/manual.js"></script>
   </body>
