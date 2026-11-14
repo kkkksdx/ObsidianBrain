@@ -67,7 +67,10 @@ test('app and fullscreen reading have a uniform backdrop without light pools or 
 
 test('every component filter consumes a semantic material token instead of a local blur recipe', async () => {
   const root = new URL('../src/', import.meta.url)
-  for (const file of [...await readdir(root, { recursive: true }), '../index.html']) {
+  // readdir yields platform separators (backslashes on Windows); normalize before
+  // comparing against the POSIX-style path below so the material entry is skipped.
+  const files = (await readdir(root, { recursive: true })).map((entry) => entry.replaceAll('\\', '/'))
+  for (const file of [...files, '../index.html']) {
     if (!/\.(vue|css|html)$/.test(file) || file === 'styles/materials.css') continue
     const text = await source(file)
     for (const match of text.matchAll(/(?:-webkit-)?backdrop-filter:\s*([^;\n}]+)/g)) {
