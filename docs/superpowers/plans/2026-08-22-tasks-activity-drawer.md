@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - 后端零改动：不碰 `backend/` 下任何文件、migrations、Tool API。
-- 不触碰 live vault（`~/Documents/Obsidian/TiercelChow's Blog/`）与 `~/.obsidian-brain/brain.db`。
+- 不触碰 live vault（`~/Documents/Obsidian/<your-vault>/`）与 `~/.obsidian-brain/brain.db`。
 - 不修改 `frontend/src/components/tasks/TaskTree.vue`（交互语义变化全部落在父级 Tasks.vue）。
 - utils 模块跨模块引用只允许 `import type`（node --test 走类型剥离，运行时 import 别名/无扩展名会失败）；utils 内部遵循现有相对导入风格 `import type { ... } from '../api/tasks'`。
 - 抽屉 z-index：backdrop 2300、抽屉 2301，必须低于 MotionModal 的 2400。
@@ -142,7 +142,7 @@ test('formatTimestamp renders month/day and hh:mm', () => {
 
 - [ ] **Step 3: 运行测试确认失败**
 
-Run: `cd /Users/tiercelchow/Documents/WorkSpace/MyProjects/ObsidianBrain/frontend && npm test`
+Run: `cd /Users/<you>/Documents/WorkSpace/MyProjects/ObsidianBrain/frontend && npm test`
 Expected: FAIL —— `Cannot find module .../src/utils/taskActivity.ts`，以及 taskDates 测试中 `formatTimestamp is not a function`。
 
 - [ ] **Step 4: 实现 `frontend/src/utils/taskActivity.ts`**
@@ -235,7 +235,7 @@ export function formatTimestamp(value: string): string {
 
 - [ ] **Step 6: 运行测试确认通过**
 
-Run: `cd /Users/tiercelchow/Documents/WorkSpace/MyProjects/ObsidianBrain/frontend && npx vue-tsc -b && npm test`
+Run: `cd /Users/<you>/Documents/WorkSpace/MyProjects/ObsidianBrain/frontend && npx vue-tsc -b && npm test`
 Expected: PASS —— 新增 6 个测试 + 原 24 个测试全绿（30 tests）。
 
 - [ ] **Step 7: Commit**
@@ -441,7 +441,7 @@ defineExpose({ revealActivity })
 
 - [ ] **Step 2: 类型检查通过**
 
-Run: `cd /Users/tiercelchow/Documents/WorkSpace/MyProjects/ObsidianBrain/frontend && npx vue-tsc -b && npm test`
+Run: `cd /Users/<you>/Documents/WorkSpace/MyProjects/ObsidianBrain/frontend && npx vue-tsc -b && npm test`
 Expected: PASS（30 tests，组件未被引用但须类型无误；`noUnusedLocals` 不应报错——组件内所有绑定均被模板使用）。
 
 - [ ] **Step 3: Commit**
@@ -916,7 +916,7 @@ onMounted(async () => {
 
 - [ ] **Step 12: 门禁通过**
 
-Run: `cd /Users/tiercelchow/Documents/WorkSpace/MyProjects/ObsidianBrain/frontend && npx vue-tsc -b && npm test`
+Run: `cd /Users/<you>/Documents/WorkSpace/MyProjects/ObsidianBrain/frontend && npx vue-tsc -b && npm test`
 Expected: PASS —— vue-tsc 零错误（重点确认：无 `activeNode` 残留引用、`selectNode`/`auditTitle` 无残留、`drawerRef.revealActivity` 类型可解析）、30 tests 全绿。
 
 再跑残留检查：
@@ -1032,7 +1032,7 @@ git commit -m "docs(tasks): describe activity attribution and subtask drawer"
 - [ ] **Step 1: 全量门禁**
 
 ```bash
-cd /Users/tiercelchow/Documents/WorkSpace/MyProjects/ObsidianBrain/frontend
+cd /Users/<you>/Documents/WorkSpace/MyProjects/ObsidianBrain/frontend
 npx vue-tsc -b && npm test
 ```
 Expected: PASS（30 tests）。
@@ -1040,7 +1040,7 @@ Expected: PASS（30 tests）。
 - [ ] **Step 2: 残留与一致性检查**
 
 ```bash
-cd /Users/tiercelchow/Documents/WorkSpace/MyProjects/ObsidianBrain
+cd /Users/<you>/Documents/WorkSpace/MyProjects/ObsidianBrain
 grep -rn "activeNode\|selectNode" frontend/src/views/Tasks.vue          # 期望：无输出
 grep -c "activity-task\|drawerNodeId\|task-detail-zone" frontend/src/views/Tasks.vue  # 期望：≥3 处命中
 git log --oneline refactor/tasks-decouple-obsidian..HEAD               # 期望：Task 1-4 的 commit 序列
@@ -1049,7 +1049,7 @@ git log --oneline refactor/tasks-decouple-obsidian..HEAD               # 期望�
 - [ ] **Step 3: 前端构建**
 
 ```bash
-cd /Users/tiercelchow/Documents/WorkSpace/MyProjects/ObsidianBrain/frontend
+cd /Users/<you>/Documents/WorkSpace/MyProjects/ObsidianBrain/frontend
 npx vite build --outDir dist_new
 ```
 Expected: 构建成功零错误。
@@ -1057,7 +1057,7 @@ Expected: 构建成功零错误。
 - [ ] **Step 4: Release 二进制构建（内嵌新前端）**
 
 ```bash
-cd /Users/tiercelchow/Documents/WorkSpace/MyProjects/ObsidianBrain/backend
+cd /Users/<you>/Documents/WorkSpace/MyProjects/ObsidianBrain/backend
 cargo build --release
 ```
 Expected: 编译成功。产物 `backend/target/release/obsidian-brain` 待用户与 decoupling 改动**合并一次** sudo 安装（`sudo cp backend/target/release/obsidian-brain /usr/local/bin/obsidian-brain` 并重启），不在本任务内执行安装。

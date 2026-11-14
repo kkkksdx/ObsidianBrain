@@ -15,7 +15,7 @@
 - Commit format: Conventional Commits（e.g. `refactor(tasks): ...`）. No commit touches unrelated files.
 - 禁止生产代码 `.unwrap()` / `.expect()`（测试除外）.
 - The user's live backend is the **installed release binary** `/usr/local/bin/obsidian-brain`; nothing in Tasks 1–6 changes it. Rollout happens only in Task 7.
-- Never read or write anything under `/Users/tiercelchow/Documents/Obsidian/TiercelChow's Blog/Tasks/` during implementation (the running old binary still owns those files).
+- Never read or write anything under `/Users/<you>/Documents/Obsidian/<your-vault>/Tasks/` during implementation (the running old binary still owns those files).
 - New short tasks get one dedicated document per task with path key `db:short:{uuid}`; new long tasks use `db:long:{uuid}`. Existing document rows keep their `Tasks/...md` paths unchanged.
 - API surface after this plan: exactly 10 task tools (the `sync_tasks` tool is removed).
 
@@ -1306,7 +1306,7 @@ Also load the Tasks page in a browser: list renders, detail opens (no 位置 row
 
 - [ ] **Step 6: Update project memory**
 
-In `~/.claude/projects/-Users-tiercelchow-Documents-WorkSpace-MyProjects-ObsidianBrain/memory/`:
+In `~/.claude/projects/-Users-<you>-Documents-WorkSpace-MyProjects-ObsidianBrain/memory/`:
 - Update `backend-run-via-debug-binary.md`: the "no delete-progress tool API → edit md + sync_tasks" workaround is obsolete — SQLite is now the sole authority; removing progress entries is no longer possible via vault edits.
 - Update `task-management-reliability-gaps.md`: the 5 unimplemented reliability items (startup scan, queue drain, external-edit warning, dup-id sync_error, index fallback) are moot — the mechanisms they described were deleted. Rewrite the memory to say so (or replace its content with a note that decoupling landed 2026-08-22 and the gaps no longer apply).
 - Update `MEMORY.md` index lines accordingly.

@@ -434,7 +434,7 @@ Expected: PASS（含既有 76 单测无回归）
 
 - [ ] **Step 2: 构建 + 安装**
 
-Run: `cd /Users/tiercelchow/Documents/WorkSpace/MyProjects/ObsidianBrain && make install`
+Run: `cd /Users/<you>/Documents/WorkSpace/MyProjects/ObsidianBrain && make install`
 （`make install` = vite build + cargo build --release + 复制到 ~/.local/bin/obsidian-brain）
 
 - [ ] **Step 3: 确认最终 commit 序列**

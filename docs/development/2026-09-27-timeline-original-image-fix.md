@@ -22,5 +22,5 @@
 - 额外 `cargo clippy --all-targets -- -D warnings` 因 8 处存量 Wiki 测试警告未通过（复杂类型、跨 await 的同步锁、可省略的 clone）；均不在本次修改文件中，未扩大修复范围。
 - 使用临时数据目录和数据库启动新版后端，三张实际照片的原图代理均返回 200，JPEG 类型正确，SHA-256 与原始文件一致。正式服务、数据库、图片和小记未被替换或改写。
 - 隔离浏览器在 1440×1000 和 390×844 验证原图实际解码和可见、切换下一张、关闭预览；页面使用夹具小记，禁止非读取请求。验收等待入场动画结束后检查可见性，不把过渡起点的透明度当成最终状态。
-- `cargo build --release` 通过；发布版二进制再次通过同样的三张原图及桌面／手机预览验收。产物为 `backend/target/release/obsidian-brain`，未覆盖 `/Users/tiercelchow/.local/bin/obsidian-brain`，正式服务仍运行原版本，需要使用新二进制重启后生效。
+- `cargo build --release` 通过；发布版二进制再次通过同样的三张原图及桌面／手机预览验收。产物为 `backend/target/release/obsidian-brain`，未覆盖 `/Users/<you>/.local/bin/obsidian-brain`，正式服务仍运行原版本，需要使用新二进制重启后生效。
 - 自审确认所有 Vault 文件及目录调用共用修正后的编码；命令 ID 编码等无关路径保持原状。测试新增依赖仅位于 dev-dependencies，未增加运行时服务。

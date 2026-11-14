@@ -15,7 +15,7 @@
 - 后端：`Result<T, BrainError>`；生产代码禁止 `.unwrap()`/`.expect()`（测试除外）；`cargo fmt` + `cargo clippy -- -D warnings` 零 warning；新 handler 注册在 reader 模块（`backend/src/tools/handlers/mod.rs`）。
 - 前端：**零新增 npm 依赖**；类型经 `npx vue-tsc -b`；测试 `npm test`（node --test --experimental-strip-types）。
 - E2E harness：`/tmp/mobile-repro/*.mjs`（playwright-core + `~/Library/Caches/ms-playwright/chromium-1234` 的 Chrome for Testing），dev server `cd frontend && npx vite --port 5174`（代理 /v1 → 127.0.0.1:9876），验证用 DOM 测量不用截图自评。
-- 用户 live vault（`/Users/tiercelchow/Documents/Obsidian/TiercelChow's Blog/`）与 `~/.obsidian-brain/brain.db`：只读，绝不写入/修改；E2E 添加的书用 `/tmp` 路径或 vault 既有路径。
+- 用户 live vault（`/Users/<you>/Documents/Obsidian/<your-vault>/`）与 `~/.obsidian-brain/brain.db`：只读，绝不写入/修改；E2E 添加的书用 `/tmp` 路径或 vault 既有路径。
 - 不碰 `/usr/local/bin`；安装走 `make install`（→ `~/.local/bin`）；服务重启由用户执行。
 - Git：Conventional Commits；不推远端；分支 `feat/reader-bookshelf`（已建，含 spec commit）。
 - 每个任务完成即 commit；commit 前 `cargo fmt --check && cargo clippy -- -D warnings && cargo test`（后端任务）/ `npx vue-tsc -b && npm test`（前端任务）。

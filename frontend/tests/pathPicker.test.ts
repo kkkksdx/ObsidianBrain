@@ -26,12 +26,12 @@ test('pathSegments returns root-only breadcrumb for "/"', () => {
 })
 
 test('pathSegments builds an increasing breadcrumb from root to path', () => {
-  const segs = pathSegments('/Users/tiercelchow/Documents')
+  const segs = pathSegments('/Users/kkkksdx/Documents')
   assert.deepEqual(segs, [
     { name: '/', path: '/' },
     { name: 'Users', path: '/Users' },
-    { name: 'tiercelchow', path: '/Users/tiercelchow' },
-    { name: 'Documents', path: '/Users/tiercelchow/Documents' },
+    { name: 'kkkksdx', path: '/Users/kkkksdx' },
+    { name: 'Documents', path: '/Users/kkkksdx/Documents' },
   ])
 })
 

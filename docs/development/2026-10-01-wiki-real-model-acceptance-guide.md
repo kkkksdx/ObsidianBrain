@@ -51,14 +51,14 @@
 前端构建与后端嵌入目录必须一致：当前后端使用的是 `frontend/dist_new`，不是默认 `dist`。
 
 ```bash
-cd /Users/tiercelchow/Documents/WorkSpace/MyProjects/ObsidianBrain/frontend
+cd /Users/<you>/Documents/WorkSpace/MyProjects/ObsidianBrain/frontend
 npm run build -- --outDir dist_new
 ```
 
 另一个终端中，创建隔离目录并前台启动：
 
 ```bash
-cd /Users/tiercelchow/Documents/WorkSpace/MyProjects/ObsidianBrain/backend
+cd /Users/<you>/Documents/WorkSpace/MyProjects/ObsidianBrain/backend
 WIKI_ACCEPTANCE_DIR=$(mktemp -d "${TMPDIR:-/tmp}/obsidianbrain-wiki-acceptance.XXXXXX")
 mkdir -p "$WIKI_ACCEPTANCE_DIR/vault"
 echo "$WIKI_ACCEPTANCE_DIR"
